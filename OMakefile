@@ -1,0 +1,9 @@
+
+USE_OCAMLFIND = true
+NATIVE_ENABLED = true
+BYTE_ENABLED = true
+
+OCAMLFLAGS += -annot -thread
+OCAMLOPTFLAGS += -inline 100
+
+.SUBDIRS: src test

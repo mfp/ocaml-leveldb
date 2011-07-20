@@ -1,0 +1,14 @@
+
+OCAMLPACKS[] = unix threads
+
+OCAMLINCLUDES += ../src
+OCAML_LIBS[] += ../src/leveldb
+
+OCamlProgram(benchmark, benchmark)
+
+.DEFAULT: benchmark
+
+.PHONY: clean
+
+clean:
+	rm -f $(filter-proper-targets $(ls R, .)) *.s *.annot *.so *.a
