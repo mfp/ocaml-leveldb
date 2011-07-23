@@ -7,3 +7,11 @@ OCAMLFLAGS += -annot -thread
 OCAMLOPTFLAGS += -inline 100
 
 .SUBDIRS: src test
+
+.SUBDIRS: leveldb
+    libleveldb.a:
+       make
+   
+    clean:
+       make clean
+
