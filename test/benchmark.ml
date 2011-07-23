@@ -1,7 +1,7 @@
 
 open Printf
 
-module LDB = Leveldb
+module LDB = LevelDB
 
 module FRAND =
 struct
