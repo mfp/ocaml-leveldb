@@ -31,11 +31,12 @@ static long ldb_any_hash(value t);
 #define LDB_ITERATOR(x) ((ldb_iterator *) Data_custom_val(x))
 #define LDB_WRITEBATCH(x) ((ldb_writebatch *) Data_custom_val(x))
 
-#define WRAP(_dst, _data, _release) \
+#define WRAP(_dst, _data, _type) \
   do { \
+      leveldb::_type *p = _data; \
       _dst = caml_alloc_custom(&ldb_any_ops, sizeof(ldb_any), 0, 1); \
-      LDB_ANY(_dst)->data = _data; \
-      LDB_ANY(_dst)->release = _release; \
+      LDB_ANY(_dst)->data = p; \
+      LDB_ANY(_dst)->release = (void (*)(void *))release_##_type; \
   } while(0);
 
 static struct custom_operations ldb_any_ops = {
@@ -104,19 +105,19 @@ ldb_any_hash(value t)
  return (long)LDB_ANY(t)->data;
 }
 
-static void release_db(void *db)
+static void release_DB(leveldb::DB *db)
 {
- delete ((leveldb::DB *) db);
+ delete db;
 }
 
-static void release_iterator(void *iterator)
+static void release_Iterator(leveldb::Iterator *iterator)
 {
- delete ((leveldb::Iterator *) iterator);
+ delete iterator;
 }
 
-static void release_writebatch(void *writebatch)
+static void release_WriteBatch(leveldb::WriteBatch *writebatch)
 {
- delete ((leveldb::WriteBatch *) writebatch);
+ delete writebatch;
 }
 
 CAMLprim value
@@ -137,7 +138,7 @@ ldb_open(value s, value write_buffer_size, value max_open_files,
  leveldb::Status status = leveldb::DB::Open(options, String_val(s), &db);
  CHECK_ERROR(status);
  
- WRAP(r, db, release_db);
+ WRAP(r, db, DB);
  CAMLreturn(r);
 }
 
@@ -240,7 +241,7 @@ ldb_iter(value f, value t)
  CHECK_CLOSED(t);
  leveldb::Iterator *_it = ldb->db->NewIterator(leveldb::ReadOptions());
 
- WRAP(it, _it, release_iterator);
+ WRAP(it, _it, Iterator);
 
  for(_it->SeekToFirst(); _it->Valid(); _it->Next()) {
      COPY_FROM(k, _it->key());
@@ -259,7 +260,7 @@ ldb_iter_from(value f, value t, value start)
 
  CHECK_CLOSED(t);
  leveldb::Iterator *_it = ldb->db->NewIterator(leveldb::ReadOptions());
- WRAP(it, _it, release_iterator);
+ WRAP(it, _it, Iterator);
 
  for(_it->Seek(TO_SLICE(start)); _it->Valid(); _it->Next()) {
      COPY_FROM(k, _it->key());
@@ -278,7 +279,7 @@ ldb_rev_iter(value f, value t)
 
  CHECK_CLOSED(t);
  leveldb::Iterator *_it = ldb->db->NewIterator(leveldb::ReadOptions());
- WRAP(it, _it, release_iterator);
+ WRAP(it, _it, Iterator);
 
  for(_it->SeekToLast(); _it->Valid(); _it->Prev()) {
      COPY_FROM(k, _it->key());
@@ -297,7 +298,7 @@ ldb_rev_iter_from(value t, value f, value start)
 
  CHECK_CLOSED(t);
  leveldb::Iterator *_it = ldb->db->NewIterator(leveldb::ReadOptions());
- WRAP(it, _it, release_iterator);
+ WRAP(it, _it, Iterator);
 
  for(_it->Seek(TO_SLICE(start)); _it->Valid(); _it->Prev()) {
      COPY_FROM(k, _it->key());
@@ -314,7 +315,7 @@ ldb_writebatch_make(value unit)
  CAMLlocal1(ret);
 
  leveldb::WriteBatch *b = new leveldb::WriteBatch;
- WRAP(ret, b, release_writebatch);
+ WRAP(ret, b, WriteBatch);
 
  CAMLreturn(ret);
 }
