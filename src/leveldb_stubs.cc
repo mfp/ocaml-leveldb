@@ -28,9 +28,10 @@ static int ldb_any_compare(value t1, value t2);
 static long ldb_any_hash(value t);
 
 #define LDB_ANY(x) ((ldb_any *) Data_custom_val(x))
-#define LDB_HANDLE(x) ((ldb_handle *) Data_custom_val(x))
-#define LDB_ITERATOR(x) ((ldb_iterator *) Data_custom_val(x))
-#define LDB_WRITEBATCH(x) ((ldb_writebatch *) Data_custom_val(x))
+
+#define LDB_HANDLE(x) (((ldb_handle *) Data_custom_val(x))->db)
+#define LDB_ITERATOR(x) (((ldb_iterator *) Data_custom_val(x))->it)
+#define LDB_WRITEBATCH(x) (((ldb_writebatch *) Data_custom_val(x))->batch)
 
 #define WRAP(_dst, _data, _type) \
   do { \
@@ -78,12 +79,12 @@ static void raise_error(const char *s)
 
 #define CHECK_CLOSED(t) \
     do { \
-      if(!LDB_HANDLE(t)->db) raise_error("leveldb handle closed"); \
+      if(!LDB_HANDLE(t)) raise_error("leveldb handle closed"); \
     } while(0);
 
 #define CHECK_IT_CLOSED(_it) \
     do { \
-      if(!LDB_ITERATOR(_it)->it) raise_error("iterator closed"); \
+      if(!LDB_ITERATOR(_it)) raise_error("iterator closed"); \
     } while(0);
 
 static void
@@ -189,12 +190,12 @@ ldb_get(value t, value k)
 {
  CAMLparam2(t, k);
  CAMLlocal1(ret);
- ldb_handle *ldb = LDB_HANDLE(t);
+ leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
  leveldb::Slice key = TO_SLICE(k);
  std::string v;
- leveldb::Status status = ldb->db->Get(leveldb::ReadOptions(), key, &v);
+ leveldb::Status status = db->Get(leveldb::ReadOptions(), key, &v);
  if(status.IsNotFound()) { RAISE_NOT_FOUND; }
 
  CHECK_ERROR(status);
@@ -207,7 +208,7 @@ CAMLprim value
 ldb_put(value t, value k, value v, value sync)
 {
  CAMLparam3(t, k, v);
- ldb_handle *ldb = LDB_HANDLE(t);
+ leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
  leveldb::Slice key = TO_SLICE(k);
@@ -215,7 +216,7 @@ ldb_put(value t, value k, value v, value sync)
  leveldb::WriteOptions options;
  options.sync = (Val_true == sync);
 
- leveldb::Status status = ldb->db->Put(options, key, val);
+ leveldb::Status status = db->Put(options, key, val);
 
  CHECK_ERROR(status);
  CAMLreturn(Val_unit);
@@ -226,14 +227,14 @@ CAMLprim value
 ldb_delete(value t, value k, value sync)
 {
  CAMLparam2(t, k);
- ldb_handle *ldb = LDB_HANDLE(t);
+ leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
  leveldb::Slice key = TO_SLICE(k);
  leveldb::WriteOptions options;
  options.sync = (Val_true == sync);
 
- leveldb::Status status = ldb->db->Delete(options, key);
+ leveldb::Status status = db->Delete(options, key);
  CHECK_ERROR(status);
 
  CAMLreturn(Val_unit);
@@ -244,12 +245,12 @@ ldb_mem(value t, value k)
 {
  CAMLparam2(t, k);
  CAMLlocal1(ret);
- ldb_handle *ldb = LDB_HANDLE(t);
+ leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
  leveldb::Slice key = TO_SLICE(k);
  std::string v;
- leveldb::Status status = ldb->db->Get(leveldb::ReadOptions(), key, &v);
+ leveldb::Status status = db->Get(leveldb::ReadOptions(), key, &v);
  bool not_found;
 
  CHECK_ERROR(status);
@@ -264,10 +265,11 @@ ldb_make_iter(value t)
 {
  CAMLparam1(t);
  CAMLlocal1(it);
- ldb_handle *ldb = LDB_HANDLE(t);
+
+ leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
- leveldb::Iterator *_it = ldb->db->NewIterator(leveldb::ReadOptions());
+ leveldb::Iterator *_it = db->NewIterator(leveldb::ReadOptions());
 
  WRAP(it, _it, Iterator);
  CAMLreturn(it);
@@ -285,9 +287,9 @@ ldb_it_first(value it)
 {
  CAMLparam1(it);
  CHECK_IT_CLOSED(it);
- ldb_iterator *_it = LDB_ITERATOR(it);
+ leveldb::Iterator *_it = LDB_ITERATOR(it);
 
- _it->it->SeekToFirst();
+ _it->SeekToFirst();
  CAMLreturn(Val_unit);
 }
 
@@ -296,9 +298,9 @@ ldb_it_last(value it)
 {
  CAMLparam1(it);
  CHECK_IT_CLOSED(it);
- ldb_iterator *_it = LDB_ITERATOR(it);
+ leveldb::Iterator *_it = LDB_ITERATOR(it);
 
- _it->it->SeekToLast();
+ _it->SeekToLast();
  CAMLreturn(Val_unit);
 }
 
@@ -307,10 +309,10 @@ ldb_it_seek_unsafe(value it, value s, value off, value len)
 {
  CAMLparam2(it, s);
  CHECK_IT_CLOSED(it);
- ldb_iterator *_it = LDB_ITERATOR(it);
+ leveldb::Iterator *_it = LDB_ITERATOR(it);
 
  leveldb::Slice key(String_val(s) + Int_val(off), Int_val(len));
- _it->it->Seek(key);
+ _it->Seek(key);
  CAMLreturn(Val_unit);
 }
 
@@ -319,9 +321,9 @@ ldb_it_next(value it)
 {
  CAMLparam1(it);
  CHECK_IT_CLOSED(it);
- ldb_iterator *_it = LDB_ITERATOR(it);
+ leveldb::Iterator *_it = LDB_ITERATOR(it);
 
- _it->it->Next();
+ _it->Next();
  CAMLreturn(Val_unit);
 }
 
@@ -330,18 +332,18 @@ ldb_it_prev(value it)
 {
  CAMLparam1(it);
  CHECK_IT_CLOSED(it);
- ldb_iterator *_it = LDB_ITERATOR(it);
+ leveldb::Iterator *_it = LDB_ITERATOR(it);
 
- _it->it->Prev();
+ _it->Prev();
  CAMLreturn(Val_unit);
 }
 
 CAMLprim value
 ldb_it_valid(value it)
 {
- ldb_iterator *_it = LDB_ITERATOR(it);
+ leveldb::Iterator *_it = LDB_ITERATOR(it);
 
- if(!_it->it || !_it->it->Valid()) return Val_false;
+ if(!_it || !_it->Valid()) return Val_false;
 
  return Val_true;
 }
@@ -356,11 +358,11 @@ ldb_it_key_unsafe(value it, value buf)
  CAMLparam2(it, buf);
 
  CHECK_IT_CLOSED(it);
- ldb_iterator *_it = LDB_ITERATOR(it);
+ leveldb::Iterator *_it = LDB_ITERATOR(it);
 
- if(!_it->it->Valid()) raise_error(_it->it->status().ToString().c_str());
+ if(!_it->Valid()) raise_error(_it->status().ToString().c_str());
 
- leveldb::Slice key = _it->it->key();
+ leveldb::Slice key = _it->key();
  size_t size = key.size();
 
  if(size <= string_length(buf))
@@ -379,11 +381,11 @@ ldb_it_value_unsafe(value it, value buf)
  CAMLparam2(it, buf);
 
  CHECK_IT_CLOSED(it);
- ldb_iterator *_it = LDB_ITERATOR(it);
+ leveldb::Iterator *_it = LDB_ITERATOR(it);
 
- if(!_it->it->Valid()) raise_error(_it->it->status().ToString().c_str());
+ if(!_it->Valid()) raise_error(_it->status().ToString().c_str());
 
- leveldb::Slice v = _it->it->value();
+ leveldb::Slice v = _it->value();
  size_t size = v.size();
 
  if(size <= string_length(buf))
@@ -397,10 +399,10 @@ ldb_iter(value f, value t)
 {
  CAMLparam2(t, f);
  CAMLlocal3(it, k, v);
- ldb_handle *ldb = LDB_HANDLE(t);
+ leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
- leveldb::Iterator *_it = ldb->db->NewIterator(leveldb::ReadOptions());
+ leveldb::Iterator *_it = db->NewIterator(leveldb::ReadOptions());
 
  WRAP(it, _it, Iterator);
 
@@ -417,10 +419,10 @@ ldb_iter_from(value f, value t, value start)
 {
  CAMLparam2(t, f);
  CAMLlocal3(it, k, v);
- ldb_handle *ldb = LDB_HANDLE(t);
+ leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
- leveldb::Iterator *_it = ldb->db->NewIterator(leveldb::ReadOptions());
+ leveldb::Iterator *_it = db->NewIterator(leveldb::ReadOptions());
  WRAP(it, _it, Iterator);
 
  for(_it->Seek(TO_SLICE(start)); _it->Valid(); _it->Next()) {
@@ -436,10 +438,10 @@ ldb_rev_iter(value f, value t)
 {
  CAMLparam2(t, f);
  CAMLlocal3(it, k, v);
- ldb_handle *ldb = LDB_HANDLE(t);
+ leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
- leveldb::Iterator *_it = ldb->db->NewIterator(leveldb::ReadOptions());
+ leveldb::Iterator *_it = db->NewIterator(leveldb::ReadOptions());
  WRAP(it, _it, Iterator);
 
  for(_it->SeekToLast(); _it->Valid(); _it->Prev()) {
@@ -455,10 +457,10 @@ ldb_rev_iter_from(value t, value f, value start)
 {
  CAMLparam2(t, f);
  CAMLlocal3(it, k, v);
- ldb_handle *ldb = LDB_HANDLE(t);
+ leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
- leveldb::Iterator *_it = ldb->db->NewIterator(leveldb::ReadOptions());
+ leveldb::Iterator *_it = db->NewIterator(leveldb::ReadOptions());
  WRAP(it, _it, Iterator);
 
  for(_it->Seek(TO_SLICE(start)); _it->Valid(); _it->Prev()) {
@@ -484,11 +486,11 @@ ldb_writebatch_make(value unit)
 CAMLprim value
 ldb_writebatch_put(value t, value k, value v)
 {
- ldb_writebatch *b = LDB_WRITEBATCH(t);
+ leveldb::WriteBatch *b = LDB_WRITEBATCH(t);
 
  leveldb::Slice key = TO_SLICE(k);
  leveldb::Slice value = TO_SLICE(v);
- b->batch->Put(key, value);
+ b->Put(key, value);
 
  return Val_unit;
 }
@@ -496,10 +498,10 @@ ldb_writebatch_put(value t, value k, value v)
 CAMLprim value
 ldb_writebatch_delete(value t, value k)
 {
- ldb_writebatch *b = LDB_WRITEBATCH(t);
+ leveldb::WriteBatch *b = LDB_WRITEBATCH(t);
 
  leveldb::Slice key = TO_SLICE(k);
- b->batch->Delete(key);
+ b->Delete(key);
 
  return Val_unit;
 }
@@ -508,14 +510,14 @@ CAMLprim value
 ldb_write_batch(value t, value batch, value sync)
 {
  CAMLparam2(t, batch);
- ldb_handle *ldb = LDB_HANDLE(t);
- ldb_writebatch *b = LDB_WRITEBATCH(batch);
+ leveldb::DB *db = LDB_HANDLE(t);
+ leveldb::WriteBatch *b = LDB_WRITEBATCH(batch);
 
  CHECK_CLOSED(t);
  leveldb::WriteOptions options;
  options.sync = (Val_true == sync);
 
- leveldb::Status status = ldb->db->Write(options, b->batch);
+ leveldb::Status status = db->Write(options, b);
 
  CHECK_ERROR(status);
  CAMLreturn(Val_unit);
@@ -526,12 +528,12 @@ ldb_get_approximate_size(value t, value _from, value _to)
 {
  CAMLparam3(t, _from, _to);
  CAMLlocal1(ret);
- ldb_handle *ldb = LDB_HANDLE(t);
+ leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
  leveldb::Range range(TO_SLICE(_from), TO_SLICE(_to));
  uint64_t size;
- ldb->db->GetApproximateSizes(&range, 1, &size);
+ db->GetApproximateSizes(&range, 1, &size);
 
  ret = caml_copy_int64(size);
  CAMLreturn(ret);
