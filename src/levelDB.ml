@@ -38,11 +38,11 @@ external put : db -> string -> string -> sync:bool -> unit = "ldb_put"
 
 let put db ?(sync = false) k v = put db ~sync k v
 
-external delete : db -> string -> sync:bool -> unit = "ldb_put"
+external delete : db -> string -> sync:bool -> unit = "ldb_delete"
 
 let delete db ?(sync = false) k = delete db ~sync k
 
-external mem : db -> string -> bool = "ldb_put"
+external mem : db -> string -> bool = "ldb_mem"
 
 external iter : (string -> string -> bool) -> db -> unit = "ldb_iter"
 external rev_iter : (string -> string -> bool) -> db -> unit = "ldb_rev_iter"
