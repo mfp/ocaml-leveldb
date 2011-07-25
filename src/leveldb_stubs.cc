@@ -80,6 +80,11 @@ static void raise_error(const char *s)
       if(!LDB_HANDLE(t)->db) raise_error("leveldb handle closed"); \
     } while(0);
 
+#define CHECK_IT_CLOSED(_it) \
+    do { \
+      if(!LDB_ITERATOR(_it)->it) raise_error("iterator closed"); \
+    } while(0);
+
 static void
 ldb_any_finalize(value t)
 {
@@ -137,7 +142,7 @@ ldb_open(value s, value write_buffer_size, value max_open_files,
  options.block_restart_interval = Int_val(block_restart_interval);
  leveldb::Status status = leveldb::DB::Open(options, String_val(s), &db);
  CHECK_ERROR(status);
- 
+
  WRAP(r, db, DB);
  CAMLreturn(r);
 }
@@ -229,6 +234,129 @@ ldb_mem(value t, value k)
  not_found = status.IsNotFound();
 
  CAMLreturn(not_found ? Val_false : Val_true);
+}
+
+CAMLprim value
+ldb_make_iter(value t)
+{
+ CAMLparam1(t);
+ CAMLlocal1(it);
+ ldb_handle *ldb = LDB_HANDLE(t);
+
+ CHECK_CLOSED(t);
+ leveldb::Iterator *_it = ldb->db->NewIterator(leveldb::ReadOptions());
+
+ WRAP(it, _it, Iterator);
+ CAMLreturn(it);
+}
+
+CAMLprim value
+ldb_iter_close(value t)
+{
+ ldb_any_finalize(t);
+ return(Val_unit);
+}
+
+CAMLprim value
+ldb_it_first(value it)
+{
+ CAMLparam1(it);
+ CHECK_IT_CLOSED(it);
+ ldb_iterator *_it = LDB_ITERATOR(it);
+
+ _it->it->SeekToFirst();
+ CAMLreturn(Val_unit);
+}
+
+CAMLprim value
+ldb_it_last(value it)
+{
+ CAMLparam1(it);
+ CHECK_IT_CLOSED(it);
+ ldb_iterator *_it = LDB_ITERATOR(it);
+
+ _it->it->SeekToLast();
+ CAMLreturn(Val_unit);
+}
+
+CAMLprim value
+ldb_it_seek_unsafe(value it, value s, value off, value len)
+{
+ CAMLparam2(it, s);
+ CHECK_IT_CLOSED(it);
+ ldb_iterator *_it = LDB_ITERATOR(it);
+
+ leveldb::Slice key(String_val(s) + Int_val(off), Int_val(len));
+ _it->it->Seek(key);
+ CAMLreturn(Val_unit);
+}
+
+CAMLprim value
+ldb_it_next(value it)
+{
+ CAMLparam1(it);
+ CHECK_IT_CLOSED(it);
+ ldb_iterator *_it = LDB_ITERATOR(it);
+
+ _it->it->Next();
+ CAMLreturn(Val_unit);
+}
+
+CAMLprim value
+ldb_it_prev(value it)
+{
+ CAMLparam1(it);
+ CHECK_IT_CLOSED(it);
+ ldb_iterator *_it = LDB_ITERATOR(it);
+
+ _it->it->Prev();
+ CAMLreturn(Val_unit);
+}
+
+/* returns:
+ * SIZE if the key exists and its size is SIZE
+ * if SIZE <= buf len, the key is copied into the supplied buffer
+ */
+CAMLprim value
+ldb_it_key_unsafe(value it, value buf)
+{
+ CAMLparam2(it, buf);
+
+ CHECK_IT_CLOSED(it);
+ ldb_iterator *_it = LDB_ITERATOR(it);
+
+ if(!_it->it->Valid()) raise_error(_it->it->status().ToString().c_str());
+
+ leveldb::Slice key = _it->it->key();
+ size_t size = key.size();
+
+ if(size <= string_length(buf))
+     memcpy(String_val(buf), key.data(), size);
+
+ CAMLreturn(Val_long(size));
+}
+
+/* returns:
+ * SIZE if the value exists and its size is SIZE
+ * if SIZE <= buf len, the value is copied into the supplied buffer
+ */
+CAMLprim value
+ldb_it_value_unsafe(value it, value buf)
+{
+ CAMLparam2(it, buf);
+
+ CHECK_IT_CLOSED(it);
+ ldb_iterator *_it = LDB_ITERATOR(it);
+
+ if(!_it->it->Valid()) raise_error(_it->it->status().ToString().c_str());
+
+ leveldb::Slice v = _it->it->value();
+ size_t size = v.size();
+
+ if(size <= string_length(buf))
+     memcpy(String_val(buf), v.data(), size);
+
+ CAMLreturn(Val_long(size));
 }
 
 CAMLprim value

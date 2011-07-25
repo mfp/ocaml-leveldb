@@ -6,6 +6,9 @@ exception Error of string
 (** Database *)
 type db
 
+(** Database iterators. *)
+type iterator
+
 (** Batch write operations. *)
 type writebatch
 
@@ -73,4 +76,31 @@ sig
   (** Apply the batch operation atomically.
     * @param sync whether to write synchronously (default: false) *)
   val write : db -> ?sync:bool -> writebatch -> unit
+end
+
+(** Iteration over bindings in a database. *)
+module Iterator :
+sig
+  val make : db -> iterator
+  val close : iterator -> unit
+
+  val seek_to_first : iterator -> unit
+  val seek_to_last : iterator -> unit
+
+  (** [seek it s off len] seeks to first binding whose key is >= to the key
+    * corresponding to the substring of [s] starting at [off] and of length
+    * [len] *)
+  val seek: iterator -> string -> int -> int -> unit
+
+  val next : iterator -> unit
+  val prev : iterator -> unit
+
+  (** [key it r] places the key for the current binding in the string referred
+    * to by [r] if it fits, otherwise it creates a new string and updates the
+    * reference.
+    * @return length of the key *)
+  val key : iterator -> string ref -> int
+
+  (** Similar to {!key}, but returning the value. *)
+  val value : iterator -> string ref -> int
 end
