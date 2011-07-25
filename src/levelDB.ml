@@ -25,6 +25,9 @@ let open_db
     ~write_buffer_size ~max_open_files ~block_size ~block_restart_interval
     path
 
+external destroy : string -> bool = "ldb_destroy"
+external repair : string -> bool = "ldb_repair"
+
 external close : db -> unit = "ldb_close"
 
 external get_exn : db -> string -> string = "ldb_get"

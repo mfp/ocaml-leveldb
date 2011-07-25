@@ -10,6 +10,7 @@ extern "C" {
 #include <caml/fail.h>
 #include <caml/callback.h>
 #include <caml/custom.h>
+#include <caml/signals.h>
 #include <string.h>
 
 typedef struct ldb_any {
@@ -152,6 +153,28 @@ ldb_close(value t)
 {
   ldb_any_finalize(t);
   return(Val_unit);
+}
+
+CAMLprim value
+ldb_destroy(value s)
+{
+ std::string _s(String_val(s), string_length(s));
+
+ caml_enter_blocking_section();
+ leveldb::Status status = leveldb::DestroyDB(_s, leveldb::Options());
+ caml_leave_blocking_section();
+ return(status.ok() ? Val_true : Val_false);
+}
+
+CAMLprim value
+ldb_repair(value s)
+{
+ std::string _s(String_val(s), string_length(s));
+
+ caml_enter_blocking_section();
+ leveldb::Status status = leveldb::RepairDB(_s, leveldb::Options());
+ caml_leave_blocking_section();
+ return(status.ok() ? Val_true : Val_false);
 }
 
 #define TO_SLICE(x) leveldb::Slice(String_val(x), string_length(x))

@@ -12,6 +12,17 @@ type iterator
 (** Batch write operations. *)
 type writebatch
 
+(** Destroy the contents of the database in the given directory.
+  * @return [true] if the operation succeeded. *)
+val destroy : string -> bool
+
+(** If a DB cannot be opened, you may attempt to call this method to resurrect
+  * as much of the contents of the database as possible.  Some data may be
+  * lost, so be careful when calling this function on a database that contains
+  * important information.
+  * @return [true] if the operation succeeded. *)
+val destroy : string -> bool
+
 (** Open a leveldb database in the given directory. *)
 val open_db :
   ?write_buffer_size:int ->
