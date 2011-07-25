@@ -313,6 +313,16 @@ ldb_it_prev(value it)
  CAMLreturn(Val_unit);
 }
 
+CAMLprim value
+ldb_it_valid(value it)
+{
+ ldb_iterator *_it = LDB_ITERATOR(it);
+
+ if(!_it->it || !_it->it->Valid()) return Val_false;
+
+ return Val_true;
+}
+
 /* returns:
  * SIZE if the key exists and its size is SIZE
  * if SIZE <= buf len, the key is copied into the supplied buffer

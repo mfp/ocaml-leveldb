@@ -95,6 +95,8 @@ sig
   val next : iterator -> unit
   val prev : iterator -> unit
 
+  val valid : iterator -> bool
+
   (** [key it r] places the key for the current binding in the string referred
     * to by [r] if it fits, otherwise it creates a new string and updates the
     * reference.

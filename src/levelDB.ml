@@ -85,6 +85,8 @@ struct
   external next : iterator -> unit = "ldb_it_next"
   external prev : iterator -> unit = "ldb_it_prev"
 
+  external valid : iterator -> bool = "ldb_it_valid" "noalloc"
+
   external key_unsafe : iterator -> string -> int = "ldb_it_key_unsafe"
   external value_unsafe : iterator -> string -> int = "ldb_it_value_unsafe"
 
