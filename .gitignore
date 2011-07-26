@@ -18,3 +18,5 @@ OMake*.omc
 *.sig
 *.log
 gmon.out
+/test/benchmark
+/test/test
