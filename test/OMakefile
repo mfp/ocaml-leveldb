@@ -1,12 +1,14 @@
 
-OCAMLPACKS[] = unix threads
+OCAMLPACKS[] = unix threads oUnit
 
 OCAMLINCLUDES += ../src
 OCAML_LIBS[] += ../src/leveldb
 
 OCamlProgram(benchmark, benchmark)
 
-.DEFAULT: benchmark
+OCamlProgram(test, $(removesuffix $(ls test_*.ml)) test)
+
+.DEFAULT: benchmark test
 
 .PHONY: clean
 
