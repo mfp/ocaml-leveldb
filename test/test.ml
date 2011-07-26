@@ -17,21 +17,37 @@ let aeq_iterator_bindings ?(next = L.Iterator.next) expected it =
 
 let aeq_value = aeq_some ~msg:"Wrong value" (sprintf "%S")
 
+let assert_found db key =
+  aeq_bool ~msg:(sprintf "mem %S" key) true (L.mem db key)
+
+let assert_not_found db key =
+  aeq_bool ~msg:(sprintf "mem %S" key) false (L.mem db key);
+  assert_not_found (fun () -> ignore (L.get_exn db key))
+
 module TestBasic =
 struct
   let test_put_get db =
     aeq_none (L.get db "test_put_get");
-    aeq_bool ~msg:"mem" false (L.mem db "test_put_get");
-    assert_not_found (fun () -> ignore (L.get_exn db "test_put_get"));
+    assert_not_found db "test_put_get";
     L.put db "test_put_get" "1";
     L.put db "test_put_get" "2";
     aeq_value "2" (L.get db "test_put_get");
     aeq_string "2" (L.get_exn db "test_put_get");
-    aeq_bool ~msg:"mem" true (L.mem db "test_put_get")
+    assert_found db "test_put_get"
+
+  let test_delete db =
+    L.delete db "test_delete";
+    assert_not_found db "test_delete";
+    L.put db "test_delete" "x";
+    aeq_value "x" (L.get db "test_delete");
+    assert_found db "test_delete";
+    L.delete db "test_delete";
+    assert_not_found db "test_delete"
 
   let tests =
     [
       "put/get/mem", test_put_get;
+      "delete/mem", test_delete;
     ]
 end
 
