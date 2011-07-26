@@ -609,6 +609,25 @@ ldb_get_approximate_size(value t, value _from, value _to)
  CAMLreturn(ret);
 }
 
+CAMLprim value
+ldb_get_property(value t, value s)
+{
+ CAMLparam2(t, s);
+ CAMLlocal2(ret, retstring);
+ std::string v;
+
+ CHECK_CLOSED(t);
+ bool found = LDB_HANDLE(t)->GetProperty(TO_SLICE(s), &v);
+
+ if(!found) CAMLreturn(Val_unit);
+
+ COPY_FROM(retstring, v);
+ ret = caml_alloc_small(1, 0);
+ Field(ret, 0) = retstring;
+
+ CAMLreturn(ret);
+}
+
 static void
 ldb_snapshot_finalize(value t)
 {

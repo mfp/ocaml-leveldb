@@ -126,6 +126,16 @@ let () =
   let n = 1_000_000 in
   let seed = 0 in
 
+  let print_stats () =
+    let db = LDB.open_db "/tmp/ldb" in
+      begin match LDB.get_property db "leveldb.stats" with
+          None -> ()
+        | Some x -> print_newline (); print_endline x
+      end;
+      LDB.close db
+
+  in
+
     List.iter
       (function
            `O (op, f) ->
@@ -133,7 +143,8 @@ let () =
              let dt = f db ?seed:(Some seed) n in
                printf "%20s  %7d/s\n%!" op (truncate (float n /. dt));
                LDB.close db
-         | `Clear -> ignore (LDB.destroy "/tmp/ldb"))
+         | `Clear -> ignore (LDB.destroy "/tmp/ldb")
+         | `E f -> f ())
       [
         `Clear;
         `O ("put", bm_put);
@@ -145,5 +156,6 @@ let () =
         `O ("batch put", bm_batch_put_sync);
         `O ("seq scan", bm_iter_seq_scan);
         `O ("rev scan", bm_iter_rev_scan);
+        `E print_stats;
       ]
 

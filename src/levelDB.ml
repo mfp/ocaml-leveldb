@@ -88,6 +88,9 @@ external rev_iter_from_ :
 external get_approximate_size_ : db_ -> string -> string -> Int64.t =
   "ldb_get_approximate_size"
 
+external get_property_ : db_ -> string -> string option =
+  "ldb_get_property"
+
 external release_snapshot_ : snapshot_ -> unit = "ldb_snapshot_release"
 external close_iterator_ : iterator_ -> unit = "ldb_iter_close"
 
@@ -255,3 +258,4 @@ let iter_from f db k = iter_from_ f db.db k
 let rev_iter_from f db k = rev_iter_from_ f db.db k
 
 let get_approximate_size db k1 k2 = get_approximate_size_ db.db k1 k2
+let get_property db k = get_property_ db.db k
