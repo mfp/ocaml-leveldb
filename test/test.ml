@@ -17,6 +17,24 @@ let aeq_iterator_bindings ?(next = L.Iterator.next) expected it =
 
 let aeq_value = aeq_some ~msg:"Wrong value" (sprintf "%S")
 
+module TestBasic =
+struct
+  let test_put_get db =
+    aeq_none (L.get db "test_put_get");
+    aeq_bool ~msg:"mem" false (L.mem db "test_put_get");
+    assert_not_found (fun () -> ignore (L.get_exn db "test_put_get"));
+    L.put db "test_put_get" "1";
+    L.put db "test_put_get" "2";
+    aeq_value "2" (L.get db "test_put_get");
+    aeq_string "2" (L.get_exn db "test_put_get");
+    aeq_bool ~msg:"mem" true (L.mem db "test_put_get")
+
+  let tests =
+    [
+      "put/get/mem", test_put_get;
+    ]
+end
+
 module TestSnapshot =
 struct
   module S = L.Snapshot
@@ -122,6 +140,7 @@ let test_with_db (name, f) = name >:: with_db f
 let tests =
   "All" >:::
   [
+    "Basic" >::: List.map test_with_db TestBasic.tests;
     "Snapshot" >::: List.map test_with_db TestSnapshot.tests;
   ]
 

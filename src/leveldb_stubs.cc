@@ -308,13 +308,13 @@ ldb_mem(value t, value k)
  leveldb::Slice key = TO_SLICE(k);
  std::string v;
  leveldb::Status status = db->Get(leveldb::ReadOptions(), key, &v);
- bool not_found;
+
+ if(status.IsNotFound()) CAMLreturn(Val_false);
+ if(status.ok ()) CAMLreturn(Val_true);
 
  CHECK_ERROR(status);
 
- not_found = status.IsNotFound();
-
- CAMLreturn(not_found ? Val_false : Val_true);
+ CAMLreturn(Val_false);
 }
 
 CAMLprim value
