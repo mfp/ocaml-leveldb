@@ -62,7 +62,7 @@ let bm_iter_value db ?seed n =
              let k = FRAND.int r in
              let key = string_of_int k in
                LDB.Iterator.seek it key 0 (String.length key);
-               ignore (LDB.Iterator.value it v)
+               ignore (LDB.Iterator.fill_value it v)
              done;
            LDB.Iterator.close it)
   in dt -. loop_k_cost n
@@ -107,8 +107,8 @@ let bm_iter_scan_aux init next db ?seed n =
          let v = ref "" in
            init it;
            while LDB.Iterator.valid it do
-             ignore (LDB.Iterator.key it k);
-             ignore (LDB.Iterator.value it v);
+             ignore (LDB.Iterator.fill_key it k);
+             ignore (LDB.Iterator.fill_value it v);
              next it;
            done)
   in dt

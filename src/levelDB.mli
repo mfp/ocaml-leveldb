@@ -108,12 +108,15 @@ sig
 
   val valid : iterator -> bool
 
-  (** [key it r] places the key for the current binding in the string referred
-    * to by [r] if it fits, otherwise it creates a new string and updates the
-    * reference.
+  (** [fill_key it r] places the key for the current binding in the string
+    * referred to by [r] if it fits, otherwise it creates a new string and
+    * updates the reference.
     * @return length of the key *)
-  val key : iterator -> string ref -> int
+  val fill_key : iterator -> string ref -> int
 
-  (** Similar to {!key}, but returning the value. *)
-  val value : iterator -> string ref -> int
+  (** Similar to {!fill_key}, but returning the value. *)
+  val fill_value : iterator -> string ref -> int
+
+  val get_key : iterator -> string
+  val get_value : iterator -> string
 end

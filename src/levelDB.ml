@@ -93,7 +93,7 @@ struct
   external key_unsafe : iterator -> string -> int = "ldb_it_key_unsafe"
   external value_unsafe : iterator -> string -> int = "ldb_it_value_unsafe"
 
-  let get_and_resize_buf_if_needed name f it buf =
+  let fill_and_resize_if_needed name f it buf =
     let len = f it !buf in
       if len <= String.length !buf then len
       else begin
@@ -103,6 +103,9 @@ struct
         f it !buf
       end
 
-  let key it buf = get_and_resize_buf_if_needed "key" key_unsafe it buf
-  let value it buf = get_and_resize_buf_if_needed "value" value_unsafe it buf
+  let fill_key it buf = fill_and_resize_if_needed "fill_key" key_unsafe it buf
+  let fill_value it buf = fill_and_resize_if_needed "fill_value" value_unsafe it buf
+
+  let get_key it = let b = ref "" in ignore (fill_key it b); !b
+  let get_value it = let b = ref "" in ignore (fill_value it b); !b
 end
