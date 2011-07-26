@@ -688,9 +688,12 @@ ldb_snapshot_mem(value t, value k)
  std::string v;
  leveldb::Status status = db->Get(options, key, &v);
 
+ if(status.IsNotFound()) CAMLreturn(Val_false);
+ if(status.ok ()) CAMLreturn(Val_true);
+
  CHECK_ERROR(status);
 
- CAMLreturn(status.IsNotFound() ? Val_false : Val_true);
+ CAMLreturn(Val_false);
 }
 
 CAMLprim value

@@ -44,12 +44,14 @@ struct
       L.put db "test_isolation" "bar";
       aeq_none ~msg:"Should not find data in isolated snapshot"
         (S.get s "test_isolation");
+      aeq_bool false (S.mem s "test_isolation");
       S.release s;
       L.put db "test_isolation" "1";
       let s = S.make db in
         L.put db "test_isolation" "2";
         aeq_some (sprintf "%S") "1" (S.get s "test_isolation");
-        aeq_bool ~msg:"Should find data" true (S.mem s "test_isolation")
+        aeq_bool ~msg:"Should find data" true (S.mem s "test_isolation");
+        aeq_bool true (S.mem s "test_isolation")
 
   let test_iterator db =
     let vector = List.map (fun k -> (k, k ^ k)) [ "a"; "b"; "c"; "x"; "w" ] in
