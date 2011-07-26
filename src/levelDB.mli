@@ -12,6 +12,9 @@ type iterator
 (** Batch write operations. *)
 type writebatch
 
+(** Immutable database snapshots. *)
+type snapshot
+
 (** Destroy the contents of the database in the given directory.
   * @return [true] if the operation succeeded. *)
 val destroy : string -> bool
@@ -48,9 +51,15 @@ val get_exn : db -> string -> string
   * @param sync whether to write synchronously (default: false) *)
 val put : db -> ?sync:bool -> string -> string -> unit
 
+(** [put_and_snapshot ?sync key value] proceeds like [put ?sync key value] and
+  * returns a snapshot of the database immediately after the write. *)
+val put_and_snapshot : db -> ?sync:bool -> string -> string -> snapshot
+
 (** [delete ?sync key] deletes the binding for the given key.
   * @param sync whether to write synchronously (default: false) *)
 val delete : db -> ?sync:bool -> string -> unit
+
+val delete_and_snapshot : db -> ?sync:bool -> string -> snapshot
 
 (** [mem db key] returns [true] iff [key] is present in [db]. *)
 val mem : db -> string -> bool
@@ -87,6 +96,8 @@ sig
   (** Apply the batch operation atomically.
     * @param sync whether to write synchronously (default: false) *)
   val write : db -> ?sync:bool -> writebatch -> unit
+
+  val write_and_snapshot : db -> ?sync:bool -> writebatch -> snapshot
 end
 
 (** Iteration over bindings in a database. *)
@@ -119,4 +130,17 @@ sig
 
   val get_key : iterator -> string
   val get_value : iterator -> string
+end
+
+module Snapshot :
+sig
+  val make : db -> snapshot
+  val release : snapshot -> unit
+
+  val get : snapshot -> string -> string option
+  val get_exn : snapshot -> string -> string
+
+  val mem : snapshot -> string -> bool
+
+  val iterator : snapshot -> iterator
 end

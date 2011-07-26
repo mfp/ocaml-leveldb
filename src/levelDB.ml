@@ -2,6 +2,7 @@
 type db
 type writebatch
 type iterator
+type snapshot
 
 exception Error of string
 
@@ -34,13 +35,21 @@ external get_exn : db -> string -> string = "ldb_get"
 
 let get db k = try Some (get_exn db k) with Not_found -> None
 
-external put : db -> string -> string -> sync:bool -> unit = "ldb_put"
+external put : db -> string -> string -> sync:bool -> snapshot:bool ->
+  snapshot option = "ldb_put"
 
-let put db ?(sync = false) k v = put db ~sync k v
+external delete : db -> string -> sync:bool -> snapshot:bool ->
+  snapshot option = "ldb_delete"
 
-external delete : db -> string -> sync:bool -> unit = "ldb_delete"
+let delete_and_snapshot db ?(sync = false) k =
+  match delete db ~sync ~snapshot:true k with None -> assert false | Some s -> s
 
-let delete db ?(sync = false) k = delete db ~sync k
+let delete db ?(sync = false) k = ignore (delete db ~sync ~snapshot:false k)
+
+let put_and_snapshot db ?(sync = false) k v =
+  match put db ~sync ~snapshot:true k v with None -> assert false | Some s -> s
+
+let put db ?(sync = false) k v = ignore (put db ~sync ~snapshot:false k v)
 
 external mem : db -> string -> bool = "ldb_mem"
 
@@ -65,8 +74,16 @@ struct
   external delete :
     writebatch -> string -> unit = "ldb_writebatch_delete"  "noalloc"
 
-  external write : db -> writebatch -> sync:bool -> unit = "ldb_write_batch"
-  let write db ?(sync = false) writebatch = write db writebatch ~sync
+  external write : db -> writebatch -> sync:bool -> snapshot:bool ->
+    snapshot option = "ldb_write_batch"
+
+  let write_and_snapshot db ?(sync = false) writebatch =
+    match write db writebatch ~sync ~snapshot:true with
+        None -> assert false
+      | Some s -> s
+
+  let write db ?(sync = false) writebatch =
+    ignore (write db writebatch ~sync ~snapshot:false)
 end
 
 module Iterator =
@@ -108,4 +125,16 @@ struct
 
   let get_key it = let b = ref "" in ignore (fill_key it b); !b
   let get_value it = let b = ref "" in ignore (fill_value it b); !b
+end
+
+module Snapshot =
+struct
+  external make : db -> snapshot = "ldb_snapshot_make"
+  external release : snapshot -> unit = "ldb_snapshot_release"
+  external get_exn : snapshot -> string -> string = "ldb_snapshot_get"
+
+  let get t k = try Some (get_exn t k) with Not_found -> None
+
+  external mem : snapshot -> string -> bool = "ldb_snapshot_mem"
+  external iterator : snapshot -> iterator = "ldb_snapshot_make_iterator"
 end

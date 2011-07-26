@@ -22,6 +22,7 @@ typedef struct ldb_any {
 typedef struct { leveldb::DB *db; } ldb_handle;
 typedef struct { leveldb::Iterator *it; } ldb_iterator;
 typedef struct { leveldb::WriteBatch *batch; } ldb_writebatch;
+typedef struct { const leveldb::Snapshot *snapshot; leveldb::DB *db; } ldb_snapshot;
 
 static void ldb_any_finalize(value t);
 static int ldb_any_compare(value t1, value t2);
@@ -32,6 +33,8 @@ static long ldb_any_hash(value t);
 #define LDB_HANDLE(x) (((ldb_handle *) Data_custom_val(x))->db)
 #define LDB_ITERATOR(x) (((ldb_iterator *) Data_custom_val(x))->it)
 #define LDB_WRITEBATCH(x) (((ldb_writebatch *) Data_custom_val(x))->batch)
+
+#define UNWRAP_SNAPSHOT(x) ((ldb_snapshot *) Data_custom_val(x))
 
 #define WRAP(_dst, _data, _type) \
   do { \
@@ -48,6 +51,18 @@ static struct custom_operations ldb_any_ops = {
     ldb_any_hash,
     custom_serialize_default,
     custom_deserialize_default
+};
+
+static void ldb_snapshot_finalize(value);
+
+static struct custom_operations ldb_snapshot_ops =
+{
+ (char *)"org.eigenclass/leveldb_snapshot",
+ ldb_snapshot_finalize,
+ ldb_any_compare,
+ ldb_any_hash,
+ custom_serialize_default,
+ custom_deserialize_default
 };
 
 static value *not_found_exn = 0;
@@ -85,6 +100,11 @@ static void raise_error(const char *s)
 #define CHECK_IT_CLOSED(_it) \
     do { \
       if(!LDB_ITERATOR(_it)) raise_error("iterator closed"); \
+    } while(0);
+
+#define CHECK_SNAPSHOT_CLOSED(_s) \
+    do { \
+      if(!UNWRAP_SNAPSHOT(_s)->snapshot) raise_error("invalid snapshot"); \
     } while(0);
 
 static void
@@ -204,40 +224,77 @@ ldb_get(value t, value k)
  CAMLreturn(ret);
 }
 
+static value
+maybe_return_snapshot(const leveldb::Snapshot *snap, leveldb::DB *db)
+{
+ CAMLparam0();
+ CAMLlocal2(ret, wrapped_snapshot);
+
+ ret = Val_unit;
+ if(snap) {
+     wrapped_snapshot = caml_alloc_custom(&ldb_snapshot_ops, sizeof(ldb_snapshot), 0, 1);
+     UNWRAP_SNAPSHOT(wrapped_snapshot)->db = db;
+     UNWRAP_SNAPSHOT(wrapped_snapshot)->snapshot = snap;
+     ret = caml_alloc_small(1, 0);
+     Store_field(ret, 0, wrapped_snapshot);
+ }
+
+ CAMLreturn(ret);
+}
+
 CAMLprim value
-ldb_put(value t, value k, value v, value sync)
+ldb_put(value t, value k, value v, value sync, value snapshot)
 {
  CAMLparam3(t, k, v);
+ CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
  leveldb::Slice key = TO_SLICE(k);
  leveldb::Slice val = TO_SLICE(v);
+
  leveldb::WriteOptions options;
+ const leveldb::Snapshot *snap = NULL;
+
  options.sync = (Val_true == sync);
+
+ if(Val_true == snapshot)
+     options.post_write_snapshot = &snap;
 
  leveldb::Status status = db->Put(options, key, val);
 
  CHECK_ERROR(status);
- CAMLreturn(Val_unit);
+
+ ret = maybe_return_snapshot(snap, db);
+
+ CAMLreturn(ret);
 }
 
 
 CAMLprim value
-ldb_delete(value t, value k, value sync)
+ldb_delete(value t, value k, value sync, value snapshot)
 {
  CAMLparam2(t, k);
+ CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
  leveldb::Slice key = TO_SLICE(k);
+
  leveldb::WriteOptions options;
+ const leveldb::Snapshot *snap = NULL;
+
  options.sync = (Val_true == sync);
+
+ if(Val_true == snapshot)
+     options.post_write_snapshot = &snap;
 
  leveldb::Status status = db->Delete(options, key);
  CHECK_ERROR(status);
 
- CAMLreturn(Val_unit);
+ ret = maybe_return_snapshot(snap, db);
+
+ CAMLreturn(ret);
 }
 
 CAMLprim value
@@ -507,20 +564,27 @@ ldb_writebatch_delete(value t, value k)
 }
 
 CAMLprim value
-ldb_write_batch(value t, value batch, value sync)
+ldb_write_batch(value t, value batch, value sync, value snapshot)
 {
  CAMLparam2(t, batch);
+ CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
  leveldb::WriteBatch *b = LDB_WRITEBATCH(batch);
 
  CHECK_CLOSED(t);
  leveldb::WriteOptions options;
+ const leveldb::Snapshot *snap = NULL;
  options.sync = (Val_true == sync);
+ if(Val_true == snapshot)
+     options.post_write_snapshot = &snap;
 
  leveldb::Status status = db->Write(options, b);
 
  CHECK_ERROR(status);
- CAMLreturn(Val_unit);
+
+ ret = maybe_return_snapshot(snap, db);
+
+ CAMLreturn(ret);
 }
 
 CAMLprim value
@@ -537,6 +601,101 @@ ldb_get_approximate_size(value t, value _from, value _to)
 
  ret = caml_copy_int64(size);
  CAMLreturn(ret);
+}
+
+static void
+ldb_snapshot_finalize(value t)
+{
+ ldb_snapshot *s = UNWRAP_SNAPSHOT(t);
+ if(s->snapshot) {
+     s->db->ReleaseSnapshot(s->snapshot);
+     s->snapshot = NULL;
+ }
+}
+
+CAMLprim value
+ldb_snapshot_make(value t)
+{
+ CAMLparam1(t);
+ CAMLlocal1(ret);
+
+ CHECK_CLOSED(t);
+ leveldb::DB *db = LDB_HANDLE(t);
+ const leveldb::Snapshot* snapshot = db->GetSnapshot();
+ ret = caml_alloc_custom(&ldb_snapshot_ops, sizeof(ldb_snapshot), 0, 1);
+ ldb_snapshot *_ret = UNWRAP_SNAPSHOT(ret);
+ _ret->db = db;
+ _ret->snapshot = snapshot;
+ CAMLreturn(ret);
+}
+
+CAMLprim value
+ldb_snapshot_release(value t)
+{
+ CAMLparam1(t);
+ ldb_snapshot_finalize(t);
+ CAMLreturn(Val_unit);
+}
+
+CAMLprim value
+ldb_snapshot_get(value t, value k)
+{
+ CAMLparam2(t, k);
+ CAMLlocal1(ret);
+ CHECK_SNAPSHOT_CLOSED(t);
+ ldb_snapshot *snap = UNWRAP_SNAPSHOT(t);
+ leveldb::DB *db = snap->db;
+
+ leveldb::Slice key = TO_SLICE(k);
+ leveldb::ReadOptions options;
+
+ options.snapshot = snap->snapshot;
+
+ std::string v;
+ leveldb::Status status = db->Get(options, key, &v);
+ if(status.IsNotFound()) { RAISE_NOT_FOUND; }
+
+ CHECK_ERROR(status);
+
+ COPY_FROM(ret, v);
+ CAMLreturn(ret);
+}
+CAMLprim value
+ldb_snapshot_mem(value t, value k)
+{
+ CAMLparam2(t, k);
+ CHECK_SNAPSHOT_CLOSED(t);
+ ldb_snapshot *snap = UNWRAP_SNAPSHOT(t);
+ leveldb::DB *db = snap->db;
+
+ leveldb::Slice key = TO_SLICE(k);
+ leveldb::ReadOptions options;
+
+ options.snapshot = snap->snapshot;
+
+ std::string v;
+ leveldb::Status status = db->Get(options, key, &v);
+
+ CHECK_ERROR(status);
+
+ CAMLreturn(status.IsNotFound() ? Val_false : Val_true);
+}
+
+CAMLprim value
+ldb_snapshot_make_iterator(value t)
+{
+ CAMLparam1(t);
+ CAMLlocal1(it);
+
+ CHECK_SNAPSHOT_CLOSED(t);
+ leveldb::DB *db = UNWRAP_SNAPSHOT(t)->db;
+
+ leveldb::ReadOptions options;
+ options.snapshot = UNWRAP_SNAPSHOT(t)->snapshot;
+ leveldb::Iterator *_it = db->NewIterator(options);
+
+ WRAP(it, _it, Iterator);
+ CAMLreturn(it);
 }
 
 }
