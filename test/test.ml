@@ -5,6 +5,7 @@ open Test_00util
 
 module L = LevelDB
 module I = LevelDB.Iterator
+module B = LevelDB.Batch
 
 let aeq_iterator_bindings ?(next = L.Iterator.next) expected it =
   let l = ref [] in
@@ -13,6 +14,8 @@ let aeq_iterator_bindings ?(next = L.Iterator.next) expected it =
       next it;
     done;
     aeq_list (fun (k, v) -> sprintf "%S:%S" k v) expected (List.rev !l)
+
+let aeq_value = aeq_some ~msg:"Wrong value" (sprintf "%S")
 
 module TestSnapshot =
 struct
@@ -27,7 +30,8 @@ struct
       L.put db "test_isolation" "1";
       let s = S.make db in
         L.put db "test_isolation" "2";
-        aeq_some (sprintf "%S") "1" (S.get s "test_isolation")
+        aeq_some (sprintf "%S") "1" (S.get s "test_isolation");
+        aeq_bool ~msg:"Should find data" true (S.mem s "test_isolation")
 
   let test_iterator db =
     let vector = List.map (fun k -> (k, k ^ k)) [ "a"; "b"; "c"; "x"; "w" ] in
@@ -46,10 +50,40 @@ struct
             ["a", "1"; "b", "bb"; "c", "cc"; "f", "2"; "w", "ww"; "x", "xx"]
             it
 
+  let test_put_and_snapshot db =
+    let s = L.put_and_snapshot db "test_put_and_snapshot" "1" in
+      L.put db "test_put_and_snapshot" "2";
+      aeq_value "1" (S.get s "test_put_and_snapshot");
+      aeq_value "2" (L.get db "test_put_and_snapshot");
+      S.release s
+
+  let test_delete_and_snapshot db =
+    L.put db "test_delete_and_snapshot" "1";
+    let s = L.delete_and_snapshot db "test_put_and_snapshot" in
+      L.put db "test_delete_and_snapshot" "2";
+      aeq_none ~msg:"No value should be found in snapshot"
+        (S.get s "test_put_and_snapshot");
+      S.release s
+
+  let test_write_and_snapshot db =
+    let b = B.make () in
+      B.put b "a" "1";
+      B.put b "a" "2";
+      B.put b "b" "1";
+      let s = B.write_and_snapshot db b in
+        L.delete db "b";
+        L.put db "a" "3";
+        aeq_value "2" (S.get s "a");
+        aeq_value "1" (S.get s "b");
+        S.release s
+
   let tests =
     [
       "isolation", test_isolation;
       "iterator", test_iterator;
+      "put_and_snapshot", test_put_and_snapshot;
+      "delete_and_snapshot", test_delete_and_snapshot;
+      "write_and_snapshot", test_write_and_snapshot;
     ]
 end
 
