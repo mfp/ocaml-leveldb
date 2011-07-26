@@ -7,13 +7,18 @@ module L = LevelDB
 module I = LevelDB.Iterator
 module B = LevelDB.Batch
 
+let string_of_binding (k, v) = sprintf "%S:%S" k v
+
+let aeq_bindings expected actual =
+  aeq_list string_of_binding expected actual
+
 let aeq_iterator_bindings ?(next = L.Iterator.next) expected it =
   let l = ref [] in
     while I.valid it do
       l := (I.get_key it, I.get_value it) :: !l;
       next it;
     done;
-    aeq_list (fun (k, v) -> sprintf "%S:%S" k v) expected (List.rev !l)
+    aeq_bindings expected (List.rev !l)
 
 let aeq_value = aeq_some ~msg:"Wrong value" (sprintf "%S")
 
@@ -44,10 +49,54 @@ struct
     L.delete db "test_delete";
     assert_not_found db "test_delete"
 
+  let test_iter db =
+    let vector = [ "a", "1"; "b", "2"; "c", "3" ] in
+      List.iter (fun (k, v) -> L.put db k v) vector;
+      let l = ref [] in
+        L.iter (fun k v -> l := (k, v) :: !l; true) db;
+        aeq_bindings vector (List.rev !l);
+        l := [];
+        L.iter (fun k v -> l:= (k, v) :: !l; false) db;
+        aeq_bindings ["a", "1"] (List.rev !l)
+
+  let test_iter_from db =
+    let vector = [ "a", "1"; "b", "2"; "c", "3" ] in
+      List.iter (fun (k, v) -> L.put db k v) vector;
+      let l = ref [] in
+        L.iter_from (fun k v -> l := (k, v) :: !l; true) db "b";
+        aeq_bindings ["b", "2"; "c", "3"] (List.rev !l);
+        l := [];
+        L.iter_from (fun k v -> l:= (k, v) :: !l; false) db "b";
+        aeq_bindings ["b", "2"] (List.rev !l)
+
+  let test_rev_iter db =
+    let vector = [ "a", "1"; "b", "2"; "c", "3" ] in
+      List.iter (fun (k, v) -> L.put db k v) vector;
+      let l = ref [] in
+        L.rev_iter (fun k v -> l := (k, v) :: !l; true) db;
+        aeq_bindings vector !l;
+        l := [];
+        L.rev_iter (fun k v -> l:= (k, v) :: !l; false) db;
+        aeq_bindings ["c", "3"] !l
+
+  let test_rev_iter_from db =
+    let vector = [ "a", "1"; "b", "2"; "c", "3" ] in
+      List.iter (fun (k, v) -> L.put db k v) vector;
+      let l = ref [] in
+        L.rev_iter_from (fun k v -> l := (k, v) :: !l; true) db "b";
+        aeq_bindings ["a", "1"; "b", "2"] !l;
+        l := [];
+        L.rev_iter_from (fun k v -> l:= (k, v) :: !l; false) db "b";
+        aeq_bindings ["b", "2"] !l
+
   let tests =
     [
       "put/get/mem", test_put_get;
       "delete/mem", test_delete;
+      "iter", test_iter;
+      "rev_iter", test_rev_iter;
+      "iter_from", test_iter_from;
+      "rev_iter_from", test_rev_iter_from;
     ]
 end
 

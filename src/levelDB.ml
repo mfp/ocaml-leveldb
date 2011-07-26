@@ -77,14 +77,6 @@ external delete_ : db_ -> string -> sync:bool -> snapshot:bool ->
 
 external mem_ : db_ -> string -> bool = "ldb_mem"
 
-external iter_ : (string -> string -> bool) -> db_ -> unit = "ldb_iter"
-external rev_iter_ : (string -> string -> bool) -> db_ -> unit = "ldb_rev_iter"
-
-external iter_from_ :
-  (string -> string -> bool) -> db_ -> string -> unit = "ldb_iter_from"
-external rev_iter_from_ :
-  (string -> string -> bool) -> db_ -> string -> unit = "ldb_rev_iter_from"
-
 external get_approximate_size_ : db_ -> string -> string -> Int64.t =
   "ldb_get_approximate_size"
 
@@ -252,10 +244,32 @@ let put_and_snapshot db ?(sync = false) k v =
 let put db ?(sync = false) k v =
   ignore (put_ db.db ~sync ~snapshot:false k v)
 
-let iter f db = iter_ f db.db
-let rev_iter f db = rev_iter_ f db.db
-let iter_from f db k = iter_from_ f db.db k
-let rev_iter_from f db k = rev_iter_from_ f db.db k
+let iter_aux next f it =
+  let finished = ref false in
+    while not !finished && Iterator.valid it do
+      finished := not (f (Iterator.get_key it) (Iterator.get_value it));
+      next it
+    done
+
+let iter f db =
+  let it = Iterator.make db in
+    Iterator.seek_to_first it;
+    iter_aux Iterator.next f it
+
+let rev_iter f db =
+  let it = Iterator.make db in
+    Iterator.seek_to_last it;
+    iter_aux Iterator.prev f it
+
+let iter_from f db k =
+  let it = Iterator.make db in
+    Iterator.seek it k 0 (String.length k);
+    iter_aux Iterator.next f it
+
+let rev_iter_from f db k =
+  let it = Iterator.make db in
+    Iterator.seek it k 0 (String.length k);
+    iter_aux Iterator.prev f it
 
 let get_approximate_size db k1 k2 = get_approximate_size_ db.db k1 k2
 let get_property db k = get_property_ db.db k
