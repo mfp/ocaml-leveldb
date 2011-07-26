@@ -318,6 +318,12 @@ ldb_mem(value t, value k)
 }
 
 CAMLprim value
+ldb_iterator_compare(value t1, value t2)
+{
+ return Val_int(ldb_any_compare(t1, t2));
+}
+
+CAMLprim value
 ldb_make_iter(value t)
 {
  CAMLparam1(t);
@@ -611,6 +617,12 @@ ldb_snapshot_finalize(value t)
      s->db->ReleaseSnapshot(s->snapshot);
      s->snapshot = NULL;
  }
+}
+
+CAMLprim value
+ldb_snapshot_compare(value t1, value t2)
+{
+ return Val_int(ldb_any_compare(t1, t2));
 }
 
 CAMLprim value
