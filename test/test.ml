@@ -77,6 +77,27 @@ struct
         aeq_value "1" (S.get s "b");
         S.release s
 
+  let test_db_closed_before_release db =
+    let s = S.make db in
+      L.close db;
+      S.release s
+
+  let test_release_when_iterator_in_use db =
+    L.put db "a" "a";
+    L.put db "b" "b";
+    let s = S.make db in
+    let it = S.iterator s in
+      L.put db "c" "c";
+      I.seek_to_first it;
+      aeq_bool true (I.valid it);
+      aeq_string ~msg:"Value" "a" (I.get_value it);
+      S.release s;
+      I.next it;
+      aeq_bool ~msg:"Should still be valid" true (I.valid it);
+      aeq_string ~msg:"Value for 'b'" "b" (I.get_value it);
+      I.next it;
+      aeq_bool ~msg:"Should reach EOS" false (I.valid it)
+
   let tests =
     [
       "isolation", test_isolation;
@@ -84,6 +105,8 @@ struct
       "put_and_snapshot", test_put_and_snapshot;
       "delete_and_snapshot", test_delete_and_snapshot;
       "write_and_snapshot", test_write_and_snapshot;
+      "DB closed before snapshot release", test_db_closed_before_release;
+      "DB closed with snapshot iterator in use", test_release_when_iterator_in_use;
     ]
 end
 
