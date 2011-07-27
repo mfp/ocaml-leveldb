@@ -50,6 +50,9 @@ val get_property : db -> string -> string option
 (** Read-only access to the DB. *)
 val read_access : db -> read_access
 
+(** Return a new iterator. *)
+val iterator : db -> iterator
+
 (** Retrieve a value. *)
 val get : db -> string -> string option
 
@@ -168,7 +171,9 @@ sig
 
   val mem : snapshot -> string -> bool
 
+  (** Return a new iterator. *)
   val iterator : snapshot -> iterator
+
   val read_access : snapshot -> read_access
 
   (** Refer to {!Iterator.iter}. *)

@@ -284,6 +284,8 @@ let read_access db =
   { get_exn = get_exn db; mem = mem db;
     iterator = (fun () -> Iterator.make db) }
 
+let iterator db = Iterator.make db
+
 let delete_and_snapshot db ?(sync = false) k =
   match delete_ db.db ~sync ~snapshot:true k with
       None -> assert false
