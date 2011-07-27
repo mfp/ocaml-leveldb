@@ -24,7 +24,7 @@ val destroy : string -> bool
   * lost, so be careful when calling this function on a database that contains
   * important information.
   * @return [true] if the operation succeeded. *)
-val destroy : string -> bool
+val repair : string -> bool
 
 (** Open a leveldb database in the given directory. *)
 val open_db :
