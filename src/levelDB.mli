@@ -15,6 +15,9 @@ type writebatch
 (** Immutable database snapshots. *)
 type snapshot
 
+(** Read-only access to the DB or a snapshot. *)
+type read_access
+
 (** Destroy the contents of the database in the given directory.
   * @return [true] if the operation succeeded. *)
 val destroy : string -> bool
@@ -43,6 +46,9 @@ val get_approximate_size : db -> string -> string -> Int64.t
 
 (** Return the specified property, if existent. *)
 val get_property : db -> string -> string option
+
+(** Read-only access to the DB. *)
+val read_access : db -> read_access
 
 (** Retrieve a value. *)
 val get : db -> string -> string option
@@ -146,4 +152,13 @@ sig
   val mem : snapshot -> string -> bool
 
   val iterator : snapshot -> iterator
+  val read_access : snapshot -> read_access
+end
+
+module Read_access :
+sig
+  val get : read_access -> string -> string option
+  val get_exn : read_access -> string -> string
+  val mem : read_access -> string -> bool
+  val iterator : read_access -> iterator
 end

@@ -50,6 +50,13 @@ end
 
 include TYPES
 
+type read_access =
+    {
+      get_exn : string -> string;
+      mem : string -> bool;
+      iterator : unit -> iterator;
+    }
+
 exception Error of string
 
 let () =
@@ -182,6 +189,14 @@ struct
   let get_value it = let b = ref "" in ignore (fill_value it b); !b
 end
 
+module Read_access =
+struct
+  let get t k = try Some (t.get_exn k) with Not_found -> None
+  let get_exn t k = t.get_exn k
+  let mem t k = t.mem k
+  let iterator t = t.iterator ()
+end
+
 module Snapshot =
 struct
   external make_ : db_ -> snapshot_ = "ldb_snapshot_make"
@@ -205,6 +220,10 @@ struct
       it
 
   let get t k = try Some (get_exn t k) with Not_found -> None
+
+  let read_access s =
+    { get_exn = get_exn s; mem = mem s;
+      iterator = (fun () -> iterator s) }
 end
 
 let open_db
@@ -227,6 +246,10 @@ let get_exn db k = get_exn_ db.db k
 let get db k = try Some (get_exn db k) with Not_found -> None
 
 let mem db k = mem_ db.db k
+
+let read_access db =
+  { get_exn = get_exn db; mem = mem db;
+    iterator = (fun () -> Iterator.make db) }
 
 let delete_and_snapshot db ?(sync = false) k =
   match delete_ db.db ~sync ~snapshot:true k with
