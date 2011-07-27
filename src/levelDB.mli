@@ -139,6 +139,23 @@ sig
 
   val get_key : iterator -> string
   val get_value : iterator -> string
+
+  (** [iter f db] applies [f] to all the bindings in the database/snapshot the
+    * iterator belongs to, until [f] returns [false], i.e.  runs [f key value]
+    * for all the bindings in lexicographic key order. *)
+  val iter : (string -> string -> bool) -> iterator -> unit
+
+  (** Like {!iter}, but proceed in reverse lexicographic order. *)
+  val rev_iter : (string -> string -> bool) -> iterator -> unit
+
+  (** [iter_from f it start] applies [f key value] for all the bindings after
+    * [start] (inclusive) until it returns false. *)
+  val iter_from : (string -> string -> bool) -> iterator -> string -> unit
+
+  (** [iter_from f it start] applies [f key value] for all the bindings before
+    * [start] (inclusive) in reverse lexicographic order until [f] returns
+    * [false].. *)
+  val rev_iter_from : (string -> string -> bool) -> iterator -> string -> unit
 end
 
 module Snapshot :
@@ -153,6 +170,18 @@ sig
 
   val iterator : snapshot -> iterator
   val read_access : snapshot -> read_access
+
+  (** Refer to {!Iterator.iter}. *)
+  val iter : (string -> string -> bool) -> snapshot -> unit
+
+  (** Refer to {!Iterator.rev_iter}. *)
+  val rev_iter : (string -> string -> bool) -> snapshot -> unit
+
+  (** Refer to {!Iterator.iter_from}. *)
+  val iter_from : (string -> string -> bool) -> snapshot -> string -> unit
+
+  (** Refer to {!Iterator.rev_iter_from}. *)
+  val rev_iter_from : (string -> string -> bool) -> snapshot -> string -> unit
 end
 
 module Read_access :
@@ -161,4 +190,16 @@ sig
   val get_exn : read_access -> string -> string
   val mem : read_access -> string -> bool
   val iterator : read_access -> iterator
+
+  (** Refer to {!Iterator.iter}. *)
+  val iter : (string -> string -> bool) -> read_access -> unit
+
+  (** Refer to {!Iterator.rev_iter}. *)
+  val rev_iter : (string -> string -> bool) -> read_access -> unit
+
+  (** Refer to {!Iterator.iter_from}. *)
+  val iter_from : (string -> string -> bool) -> read_access -> string -> unit
+
+  (** Refer to {!Iterator.rev_iter_from}. *)
+  val rev_iter_from : (string -> string -> bool) -> read_access -> string -> unit
 end

@@ -187,6 +187,29 @@ struct
 
   let get_key it = let b = ref "" in ignore (fill_key it b); !b
   let get_value it = let b = ref "" in ignore (fill_value it b); !b
+
+  let iter_aux next f it =
+    let finished = ref false in
+      while not !finished && valid it do
+        finished := not (f (get_key it) (get_value it));
+        next it
+      done
+
+  let iter f it =
+    seek_to_first it;
+    iter_aux next f it
+
+  let rev_iter f it =
+    seek_to_last it;
+    iter_aux prev f it
+
+  let iter_from f it k =
+    seek it k 0 (String.length k);
+    iter_aux next f it
+
+  let rev_iter_from f it k =
+    seek it k 0 (String.length k);
+    iter_aux prev f it
 end
 
 module Read_access =
@@ -195,6 +218,11 @@ struct
   let get_exn t k = t.get_exn k
   let mem t k = t.mem k
   let iterator t = t.iterator ()
+
+  let iter f t = Iterator.iter f (iterator t)
+  let rev_iter f t = Iterator.rev_iter f (iterator t)
+  let iter_from f t k = Iterator.iter_from f (iterator t) k
+  let rev_iter_from f t k = Iterator.rev_iter_from f (iterator t) k
 end
 
 module Snapshot =
@@ -224,6 +252,11 @@ struct
   let read_access s =
     { get_exn = get_exn s; mem = mem s;
       iterator = (fun () -> iterator s) }
+
+  let iter f t = Iterator.iter f (iterator t)
+  let rev_iter f t = Iterator.rev_iter f (iterator t)
+  let iter_from f t k = Iterator.iter_from f (iterator t) k
+  let rev_iter_from f t k = Iterator.rev_iter_from f (iterator t) k
 end
 
 let open_db
@@ -267,32 +300,10 @@ let put_and_snapshot db ?(sync = false) k v =
 let put db ?(sync = false) k v =
   ignore (put_ db.db ~sync ~snapshot:false k v)
 
-let iter_aux next f it =
-  let finished = ref false in
-    while not !finished && Iterator.valid it do
-      finished := not (f (Iterator.get_key it) (Iterator.get_value it));
-      next it
-    done
-
-let iter f db =
-  let it = Iterator.make db in
-    Iterator.seek_to_first it;
-    iter_aux Iterator.next f it
-
-let rev_iter f db =
-  let it = Iterator.make db in
-    Iterator.seek_to_last it;
-    iter_aux Iterator.prev f it
-
-let iter_from f db k =
-  let it = Iterator.make db in
-    Iterator.seek it k 0 (String.length k);
-    iter_aux Iterator.next f it
-
-let rev_iter_from f db k =
-  let it = Iterator.make db in
-    Iterator.seek it k 0 (String.length k);
-    iter_aux Iterator.prev f it
+let iter f db = Iterator.iter f (Iterator.make db)
+let rev_iter f db = Iterator.rev_iter f (Iterator.make db)
+let iter_from f db k = Iterator.iter_from f (Iterator.make db) k
+let rev_iter_from f db k = Iterator.rev_iter_from f (Iterator.make db) k
 
 let get_approximate_size db k1 k2 = get_approximate_size_ db.db k1 k2
 let get_property db k = get_property_ db.db k
