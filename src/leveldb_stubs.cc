@@ -470,23 +470,33 @@ ldb_writebatch_make(value unit)
 }
 
 CAMLprim value
-ldb_writebatch_put(value t, value k, value v)
+ldb_writebatch_put_substring_unsafe_native
+(value t, value k, value o1, value l1, value v, value o2, value l2)
 {
  leveldb::WriteBatch *b = LDB_WRITEBATCH(t);
 
- leveldb::Slice key = TO_SLICE(k);
- leveldb::Slice value = TO_SLICE(v);
+ leveldb::Slice key = leveldb::Slice(String_val(k) + Int_val(o1), Int_val(l1));
+ leveldb::Slice value = leveldb::Slice(String_val(v) + Int_val(o2), Int_val(l2));
  b->Put(key, value);
 
  return Val_unit;
 }
 
 CAMLprim value
-ldb_writebatch_delete(value t, value k)
+ldb_writebatch_put_substring_unsafe_bytecode(value *argv, int argn)
+{
+ return
+     ldb_writebatch_put_substring_unsafe_native(argv[0], argv[1], argv[2],
+                                                argv[3], argv[4], argv[5],
+                                                argv[6]);
+}
+
+CAMLprim value
+ldb_writebatch_delete_substring_unsafe(value t, value k, value off, value len)
 {
  leveldb::WriteBatch *b = LDB_WRITEBATCH(t);
 
- leveldb::Slice key = TO_SLICE(k);
+ leveldb::Slice key = leveldb::Slice(String_val(k) + Int_val(off), Int_val(len));
  b->Delete(key);
 
  return Val_unit;

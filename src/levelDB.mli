@@ -119,8 +119,21 @@ sig
   (** [put writebatch key value] adds or replaces a binding. *)
   val put : writebatch -> string -> string -> unit
 
+  (** [put_substring writebatch key off1 len1 value off2 len2] adds or
+    * replaces a binding for the substrings of [key] and [value] delimited by
+    * the given offsets and lengths.
+    * @raise Error if the offset, length pairs do not represent valid
+    * substrings *)
+  val put_substring : writebatch ->
+    string -> int -> int ->
+    string -> int -> int -> unit
+
   (** [delete writebatch key] removes the binding for [key], if present.. *)
   val delete : writebatch -> string -> unit
+
+  (** [delete writebatch s off len] removes (if present) the binding for the
+    * substring of [s] delimited by the offset [off] and the length [len]. *)
+  val delete_substring : writebatch -> string -> int -> int -> unit
 
   (** Apply the batch operation atomically.
     * @param sync whether to write synchronously (default: false) *)

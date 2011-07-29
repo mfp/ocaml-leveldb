@@ -117,11 +117,35 @@ module Batch =
 struct
   external make : unit -> writebatch = "ldb_writebatch_make"
 
-  external put :
-    writebatch -> string -> string -> unit = "ldb_writebatch_put"  "noalloc"
+  external put_substring_unsafe :
+    writebatch ->
+    string -> int -> int ->
+    string -> int -> int ->
+    unit =
+      "ldb_writebatch_put_substring_unsafe_bytecode"
+      "ldb_writebatch_put_substring_unsafe_native" "noalloc"
 
-  external delete :
-    writebatch -> string -> unit = "ldb_writebatch_delete"  "noalloc"
+  let put b k v =
+    put_substring_unsafe
+      b k 0 (String.length k) v 0 (String.length v)
+
+  let put_substring b k o1 l1 v o2 l2 =
+    if o1 < 0 || l1 < 0 || o1 + l1 > String.length k then
+      error "Snapshot.put_substring: invalid key substring";
+    if o2 < 0 || l2 < 0 || o2 + l2 > String.length v then
+      error "Snapshot.put_substring: invalid value substring";
+    put_substring_unsafe b k o1 l1 v o2 l2
+
+  external delete_substring_unsafe :
+    writebatch -> string -> int -> int -> unit =
+      "ldb_writebatch_delete_substring_unsafe" "noalloc"
+
+  let delete b k = delete_substring_unsafe b k 0 (String.length k)
+
+  let delete_substring b k off len =
+    if off < 0 || len < 0 || off + len > String.length k then
+      error "Snapshot.delete_substring: invalid key substring";
+    delete_substring_unsafe b k off len
 
   external write : db_ -> writebatch -> sync:bool -> snapshot:bool ->
     snapshot_ option = "ldb_write_batch"
