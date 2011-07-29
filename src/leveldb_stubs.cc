@@ -1,6 +1,7 @@
 
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
+#include <leveldb/comparator.h>
 
 extern "C" {
 
@@ -148,8 +149,17 @@ static void release_WriteBatch(leveldb::WriteBatch *writebatch)
 }
 
 CAMLprim value
-ldb_open(value s, value write_buffer_size, value max_open_files,
-         value block_size, value block_restart_interval)
+ldb_lexicographic_comparator(value unit)
+{
+ const leveldb::Comparator *c = leveldb::BytewiseComparator ();
+
+ return (value)c;
+}
+
+CAMLprim value
+ldb_open_native(value s, value write_buffer_size, value max_open_files,
+                value block_size, value block_restart_interval,
+                value comparator)
 {
  CAMLparam1(s);
  CAMLlocal1(r);
@@ -162,11 +172,18 @@ ldb_open(value s, value write_buffer_size, value max_open_files,
  options.max_open_files = Int_val(max_open_files);
  options.block_size = Int_val(block_size);
  options.block_restart_interval = Int_val(block_restart_interval);
+ options.comparator = (const leveldb::Comparator *)comparator;
  leveldb::Status status = leveldb::DB::Open(options, String_val(s), &db);
  CHECK_ERROR(status);
 
  WRAP(r, db, DB);
  CAMLreturn(r);
+}
+
+CAMLprim value
+ldb_open_bytecode(value *argv, int argn)
+{
+ return ldb_open_native(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
 }
 
 CAMLprim value

@@ -22,6 +22,12 @@ type snapshot
 (** Read-only access to the DB or a snapshot. *)
 type read_access
 
+(** Type that represents a [const Comparator*] pointer (refer to
+  * LevelDB's [comparator.h]). If you want to define your own,
+  * use an external function of type [unit -> comparator]
+  * returning the pointer.*)
+type comparator
+
 (** {2 Database maintenance} *)
 
 (** Destroy the contents of the database in the given directory.
@@ -37,11 +43,15 @@ val repair : string -> bool
 
 (** {2 Database operations} *)
 
+val lexicographic_comparator : comparator
+
 (** Open a leveldb database in the given directory. *)
 val open_db :
   ?write_buffer_size:int ->
   ?max_open_files:int ->
-  ?block_size:int -> ?block_restart_interval:int -> string -> db
+  ?block_size:int -> ?block_restart_interval:int ->
+  ?comparator:comparator ->
+  string -> db
 
 (** Close the database. All further operations on it will fail.
   * Existing snapshots and iterators are released and invalidated.

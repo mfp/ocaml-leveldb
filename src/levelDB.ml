@@ -3,6 +3,7 @@ type db_
 type snapshot_
 type writebatch
 type iterator_
+type comparator
 
 external compare_snapshot_ :
   snapshot_ -> snapshot_ -> int = "ldb_snapshot_compare" "noalloc"
@@ -69,9 +70,15 @@ let error fmt =
 external destroy : string -> bool = "ldb_destroy"
 external repair : string -> bool = "ldb_repair"
 
-external open_db :
+external lexicographic_comparator : unit -> comparator =
+  "ldb_lexicographic_comparator" "noalloc"
+
+let lexicographic_comparator = lexicographic_comparator ()
+
+external open_db_ :
   string -> write_buffer_size:int -> max_open_files:int ->
-  block_size:int  -> block_restart_interval:int -> db_ = "ldb_open"
+  block_size:int  -> block_restart_interval:int ->
+  comparator:comparator -> db_ = "ldb_open_bytecode" "ldb_open_native"
 
 external close_ : db_ -> unit = "ldb_close"
 external get_exn_ : db_ -> string -> string = "ldb_get"
@@ -287,10 +294,12 @@ let open_db
       ?(write_buffer_size = 4*1024*1024)
       ?(max_open_files = 1000)
       ?(block_size = 4096)
-      ?(block_restart_interval = 16) path =
-  let db = open_db
+      ?(block_restart_interval = 16)
+      ?(comparator = lexicographic_comparator)
+      path =
+  let db = open_db_
     ~write_buffer_size ~max_open_files ~block_size ~block_restart_interval
-    path
+    ~comparator path
   in { db; snapshots = SNAPSHOTS.empty; iterators = ITERATORS.empty; }
 
 let close db =
