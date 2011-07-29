@@ -29,6 +29,12 @@ let assert_not_found db key =
   aeq_bool ~msg:(sprintf "mem %S" key) false (L.mem db key);
   assert_not_found (fun () -> ignore (L.get_exn db key))
 
+let assert_raises_error ?(msg = "") f =
+  try
+    ignore (f ());
+    assert_failure (sprintf "Should have raised an error. %s" msg)
+  with L.Error _ -> ()
+
 module TestBasic =
 struct
   let test_put_get db =
@@ -183,6 +189,25 @@ struct
       I.next it;
       aeq_bool ~msg:"Should reach EOS" false (I.valid it)
 
+  let test_batch_ops db =
+    List.iter (fun (k, v) -> L.put db k v)
+      [ "a", "1"; "b", "2" ];
+    let b = B.make () in
+      B.put b "a" "x";
+      B.delete b "b";
+      assert_raises_error (fun () -> B.put_substring b "a" (-1) 1 "z" 0 1);
+      assert_raises_error (fun () -> B.put_substring b "a" 1 1 "z" 0 1);
+      assert_raises_error (fun () -> B.put_substring b "a" 0 2 "z" 0 1);
+      assert_raises_error (fun () -> B.put_substring b "a" (-1) 2 "z" 0 1);
+      assert_raises_error (fun () -> B.put_substring b "z" 0 1 "a" (-1) 1);
+      assert_raises_error (fun () -> B.put_substring b "z" 0 1 "a" 1 1);
+      assert_raises_error (fun () -> B.put_substring b "z" 0 1 "a" 0 2);
+      assert_raises_error (fun () -> B.put_substring b "z" 0 1 "a" (-1) 2);
+      B.write db b;
+      aeq_value "x" (L.get db "a");
+      assert_not_found db "b"
+
+
   let tests =
     [
       "isolation", test_isolation;
@@ -192,6 +217,7 @@ struct
       "write_and_snapshot", test_write_and_snapshot;
       "DB closed before snapshot release", test_db_closed_before_release;
       "DB closed with snapshot iterator in use", test_release_when_iterator_in_use;
+      "batch operations", test_batch_ops;
     ]
 end
 
