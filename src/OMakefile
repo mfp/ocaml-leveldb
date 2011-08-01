@@ -4,6 +4,8 @@ CFLAGS += -g -Wall -O2 -I../leveldb/include -fPIC
 %.o: %.c
 	$(OCAMLC) -cc g++ $(mapprefix -ccopt, $(CFLAGS)) -c $^
 
+leveldb_stubs.o: leveldb_stubs.cc
+
 section
     leveldb.cma leveldb.a leveldb.cmxa: \
 	leveldb_stubs.o levelDB.cmx levelDB.cmo ../leveldb/libleveldb.a
