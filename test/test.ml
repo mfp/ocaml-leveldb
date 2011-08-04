@@ -9,16 +9,16 @@ module B = LevelDB.Batch
 
 let string_of_binding (k, v) = sprintf "%S:%S" k v
 
-let aeq_bindings expected actual =
-  aeq_list string_of_binding expected actual
+let aeq_bindings ?msg expected actual =
+  aeq_list ?msg string_of_binding expected actual
 
-let aeq_iterator_bindings ?(next = L.Iterator.next) expected it =
+let aeq_iterator_bindings ?msg ?(next = L.Iterator.next) expected it =
   let l = ref [] in
     while I.valid it do
       l := (I.get_key it, I.get_value it) :: !l;
       next it;
     done;
-    aeq_bindings expected (List.rev !l)
+    aeq_bindings ?msg expected (List.rev !l)
 
 let aeq_value = aeq_some ~msg:"Wrong value" (sprintf "%S")
 
@@ -95,6 +95,23 @@ struct
         L.rev_iter_from (fun k v -> l:= (k, v) :: !l; false) db "b";
         aeq_bindings ["b", "2"] !l
 
+  let test_iter_stability db =
+    let aeq ?msg expected it =
+      I.seek_to_first it;
+      aeq_iterator_bindings ?msg expected it in
+
+    let it1 = I.make db in
+      aeq ~msg:"it1 before put" [] it1;
+      List.iter (fun (k, v) -> L.put db k v) [ "a", "aa"; "b", "bb" ];
+      let it2 = I.make db in
+        aeq ~msg:"it1 after put" [] it1;
+        aeq ~msg:"it2 after put" [ "a", "aa"; "b", "bb" ] it2;
+        L.delete db "a";
+        let it3 = I.make db in
+          aeq ~msg:"it1 after del" [] it1;
+          aeq ~msg:"it2 after del" [ "a", "aa"; "b", "bb" ] it2;
+          aeq ~msg:"it3 after del" [ "b", "bb" ] it3
+
   let tests =
     [
       "put/get/mem", test_put_get;
@@ -103,6 +120,7 @@ struct
       "rev_iter", test_rev_iter;
       "iter_from", test_iter_from;
       "rev_iter_from", test_rev_iter_from;
+      "iterator stability", test_iter_stability;
     ]
 end
 
