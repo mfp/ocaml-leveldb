@@ -290,6 +290,11 @@ struct
   let rev_iter_from f t k = Iterator.rev_iter_from f (iterator t) k
 end
 
+let close db =
+  SNAPSHOTS.iter Snapshot.release db.snapshots;
+  ITERATORS.iter Iterator.close db.iterators;
+  close_ db.db
+
 let open_db
       ?(write_buffer_size = 4*1024*1024)
       ?(max_open_files = 1000)
@@ -299,13 +304,10 @@ let open_db
       path =
   let db = open_db_
     ~write_buffer_size ~max_open_files ~block_size ~block_restart_interval
-    ~comparator path
-  in { db; snapshots = SNAPSHOTS.empty; iterators = ITERATORS.empty; }
-
-let close db =
-  SNAPSHOTS.iter Snapshot.release db.snapshots;
-  ITERATORS.iter Iterator.close db.iterators;
-  close_ db.db
+    ~comparator path in
+  let db = { db; snapshots = SNAPSHOTS.empty; iterators = ITERATORS.empty; } in
+    Gc.finalise close db;
+    db
 
 let get_exn db k = get_exn_ db.db k
 

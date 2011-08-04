@@ -112,6 +112,16 @@ struct
           aeq ~msg:"it2 after del" [ "a", "aa"; "b", "bb" ] it2;
           aeq ~msg:"it3 after del" [ "b", "bb" ] it3
 
+  let test_db_close_with_iter_in_use db =
+    List.iter (fun (k, v) -> L.put db k v) [ "a", "aa"; "b", "bb" ];
+    let it = I.make db in
+      I.seek_to_first it;
+      L.close db;
+      aeq_bool ~msg:"Iterator.valid for iterator whose db was closed" false (I.valid it);
+      assert_raises_error
+        ~msg:"should raise an Error when using a closed iterator"
+        (fun () -> ignore (I.get_key it))
+
   let tests =
     [
       "put/get/mem", test_put_get;
@@ -121,6 +131,7 @@ struct
       "iter_from", test_iter_from;
       "rev_iter_from", test_rev_iter_from;
       "iterator stability", test_iter_stability;
+      "DB closed when iterator in use", test_db_close_with_iter_in_use;
     ]
 end
 
@@ -234,7 +245,7 @@ struct
       "delete_and_snapshot", test_delete_and_snapshot;
       "write_and_snapshot", test_write_and_snapshot;
       "DB closed before snapshot release", test_db_closed_before_release;
-      "DB closed with snapshot iterator in use", test_release_when_iterator_in_use;
+      "snapshot released when iterator in use", test_release_when_iterator_in_use;
       "batch operations", test_batch_ops;
     ]
 end

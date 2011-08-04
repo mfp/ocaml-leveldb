@@ -16,6 +16,7 @@ extern "C" {
 
 typedef struct ldb_any {
   void *data;
+  bool auto_finalize;
   void (*release)(void *);
 } ldb_any;
 
@@ -37,11 +38,12 @@ static long ldb_any_hash(value t);
 
 #define UNWRAP_SNAPSHOT(x) ((ldb_snapshot *) Data_custom_val(x))
 
-#define WRAP(_dst, _data, _type) \
+#define WRAP(_dst, _data, _type, _auto_release) \
   do { \
       leveldb::_type *p = _data; \
       _dst = caml_alloc_custom(&ldb_any_ops, sizeof(ldb_any), 0, 1); \
       LDB_ANY(_dst)->data = p; \
+      LDB_ANY(_dst)->auto_finalize = _auto_release; \
       LDB_ANY(_dst)->release = (void (*)(void *))release_##_type; \
   } while(0);
 
@@ -112,7 +114,7 @@ static void
 ldb_any_finalize(value t)
 {
  ldb_any *h = LDB_ANY(t);
- if(h->data) {
+ if(h -> auto_finalize && h->data) {
      h->release(h->data);
      h->data = NULL;
  }
@@ -176,7 +178,7 @@ ldb_open_native(value s, value write_buffer_size, value max_open_files,
  leveldb::Status status = leveldb::DB::Open(options, String_val(s), &db);
  CHECK_ERROR(status);
 
- WRAP(r, db, DB);
+ WRAP(r, db, DB, false);
  CAMLreturn(r);
 }
 
@@ -189,6 +191,7 @@ ldb_open_bytecode(value *argv, int argn)
 CAMLprim value
 ldb_close(value t)
 {
+  LDB_ANY(t)->auto_finalize = true;
   ldb_any_finalize(t);
   return(Val_unit);
 }
@@ -351,13 +354,14 @@ ldb_make_iter(value t)
  CHECK_CLOSED(t);
  leveldb::Iterator *_it = db->NewIterator(leveldb::ReadOptions());
 
- WRAP(it, _it, Iterator);
+ WRAP(it, _it, Iterator, false);
  CAMLreturn(it);
 }
 
 CAMLprim value
 ldb_iter_close(value t)
 {
+ LDB_ANY(t)->auto_finalize = true;
  ldb_any_finalize(t);
  return(Val_unit);
 }
@@ -481,7 +485,7 @@ ldb_writebatch_make(value unit)
  CAMLlocal1(ret);
 
  leveldb::WriteBatch *b = new leveldb::WriteBatch;
- WRAP(ret, b, WriteBatch);
+ WRAP(ret, b, WriteBatch, true);
 
  CAMLreturn(ret);
 }
@@ -678,7 +682,7 @@ ldb_snapshot_make_iterator(value t)
  options.snapshot = UNWRAP_SNAPSHOT(t)->snapshot;
  leveldb::Iterator *_it = db->NewIterator(options);
 
- WRAP(it, _it, Iterator);
+ WRAP(it, _it, Iterator, false);
  CAMLreturn(it);
 }
 
