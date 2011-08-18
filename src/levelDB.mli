@@ -74,6 +74,10 @@ val get_property : db -> string -> string option
 
 (** {2 Read/write} *)
 
+(** Note that in the following functions the contents of the key will be
+  * copied to the stack, so exceedingly large keys could cause a stack
+  * overflow. *)
+
 (** Retrieve a value. *)
 val get : db -> string -> string option
 
@@ -100,6 +104,10 @@ val delete : db -> ?sync:bool -> string -> unit
 val delete_and_snapshot : db -> ?sync:bool -> string -> snapshot
 
 (** {3 Iteration} *)
+
+ (* Note that the functions that accept a key ({!iter_from}, {!rev_iter_from})
+  * will copy its contents to the stack, so exceedingly large keys could cause
+  * a stack overflow. *)
 
 (** [iter f db] applies [f] to all the bindings in [db] until it returns
   * [false], i.e.  runs [f key value] for all the bindings in lexicographic
@@ -181,6 +189,8 @@ sig
   (** [seek it s off len] seeks to first binding whose key is >= to the key
     * corresponding to the substring of [s] starting at [off] and of length
     * [len].
+    * Note that the contents of the key will be copied to the stack, so
+    * exceedingly large keys could cause a stack overflow.
     * @raise Error if the offset/length does not represent a substring of the
     * key. *)
   val seek: iterator -> string -> int -> int -> unit
@@ -232,7 +242,9 @@ end
 
 (** {2 Snapshots} *)
 
-(** Access to database snapshots. *)
+(** Access to database snapshots.
+  * Note that the functions that accept a key will copy its contents to the
+  * stack, so exceedingly large keys could cause a stack overflow. *)
 module Snapshot :
 sig
   (** Create a new snapshot. Note that the snapshot keeps a reference to the
@@ -273,7 +285,9 @@ end
 
 (** {2 Abstract read-only access} *)
 
-(** Read-only access to databases and snapshots. *)
+(** Read-only access to databases and snapshots.
+  * Note that the functions that accept a key will copy its contents to the
+  * stack, so exceedingly large keys could cause a stack overflow. *)
 module Read_access :
 sig
   val get : read_access -> string -> string option
