@@ -95,6 +95,14 @@ static void raise_error(const char *s)
       if(!status.ok()) raise_error(status.ToString().c_str()); \
     } while(0);
 
+#define CHECK_ERROR_AND_CLEANUP(status, cleanup) \
+    do { \
+      if(!status.ok()) { \
+          do { cleanup } while(0); \
+          raise_error(status.ToString().c_str()); \
+      } \
+    } while(0);
+
 #define CHECK_CLOSED(t) \
     do { \
       if(!LDB_HANDLE(t)) raise_error("leveldb handle closed"); \
@@ -219,6 +227,12 @@ ldb_repair(value s)
 }
 
 #define TO_SLICE(x) leveldb::Slice(String_val(x), string_length(x))
+
+#define TO_SLICE_COPY(dst, x) \
+    char _data_##x##_[string_length(x)]; \
+    memcpy(_data_##x##_, String_val(x), string_length(x)); \
+    leveldb::Slice dst(_data_##x##_, string_length(x));
+
 #define COPY_FROM(dst, src) \
     do { \
         dst = caml_alloc_string(src.size()); \
@@ -228,17 +242,23 @@ ldb_repair(value s)
 CAMLprim value
 ldb_get(value t, value k)
 {
+ using namespace std;
  CAMLparam2(t, k);
  CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
- leveldb::Slice key = TO_SLICE(k);
+
+ TO_SLICE_COPY(key, k);
+
+ caml_enter_blocking_section();
  std::string v;
  leveldb::Status status = db->Get(leveldb::ReadOptions(), key, &v);
- if(status.IsNotFound()) { RAISE_NOT_FOUND; }
+ caml_leave_blocking_section();
 
- CHECK_ERROR(status);
+ if(status.IsNotFound()) { v.~string(); RAISE_NOT_FOUND; }
+
+ CHECK_ERROR_AND_CLEANUP(status, { v.~string(); });
 
  COPY_FROM(ret, v);
  CAMLreturn(ret);
@@ -265,13 +285,15 @@ maybe_return_snapshot(const leveldb::Snapshot *snap, leveldb::DB *db)
 CAMLprim value
 ldb_put(value t, value k, value v, value sync, value snapshot)
 {
+ using namespace std;
  CAMLparam3(t, k, v);
  CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
- leveldb::Slice key = TO_SLICE(k);
- leveldb::Slice val = TO_SLICE(v);
+ TO_SLICE_COPY(key, k);
+
+ std::string val(String_val(v), string_length(v));
 
  leveldb::WriteOptions options;
  const leveldb::Snapshot *snap = NULL;
@@ -281,9 +303,11 @@ ldb_put(value t, value k, value v, value sync, value snapshot)
  if(Val_true == snapshot)
      options.post_write_snapshot = &snap;
 
+ caml_enter_blocking_section();
  leveldb::Status status = db->Put(options, key, val);
+ caml_leave_blocking_section();
 
- CHECK_ERROR(status);
+ CHECK_ERROR_AND_CLEANUP(status, { val.~string(); });
 
  ret = maybe_return_snapshot(snap, db);
 
@@ -299,7 +323,8 @@ ldb_delete(value t, value k, value sync, value snapshot)
  leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
- leveldb::Slice key = TO_SLICE(k);
+
+ TO_SLICE_COPY(key, k);
 
  leveldb::WriteOptions options;
  const leveldb::Snapshot *snap = NULL;
@@ -309,7 +334,10 @@ ldb_delete(value t, value k, value sync, value snapshot)
  if(Val_true == snapshot)
      options.post_write_snapshot = &snap;
 
+ caml_enter_blocking_section();
  leveldb::Status status = db->Delete(options, key);
+ caml_leave_blocking_section();
+
  CHECK_ERROR(status);
 
  ret = maybe_return_snapshot(snap, db);
@@ -320,19 +348,24 @@ ldb_delete(value t, value k, value sync, value snapshot)
 CAMLprim value
 ldb_mem(value t, value k)
 {
+ using namespace std;
  CAMLparam2(t, k);
  CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
- leveldb::Slice key = TO_SLICE(k);
+
+ TO_SLICE_COPY(key, k);
  std::string v;
+
+ caml_enter_blocking_section();
  leveldb::Status status = db->Get(leveldb::ReadOptions(), key, &v);
+ caml_leave_blocking_section();
 
  if(status.IsNotFound()) CAMLreturn(Val_false);
  if(status.ok ()) CAMLreturn(Val_true);
 
- CHECK_ERROR(status);
+ CHECK_ERROR_AND_CLEANUP(status, { v.~string(); });
 
  CAMLreturn(Val_false);
 }
@@ -373,7 +406,10 @@ ldb_it_first(value it)
  CHECK_IT_CLOSED(it);
  leveldb::Iterator *_it = LDB_ITERATOR(it);
 
+ caml_enter_blocking_section();
  _it->SeekToFirst();
+ caml_leave_blocking_section();
+
  CAMLreturn(Val_unit);
 }
 
@@ -384,7 +420,9 @@ ldb_it_last(value it)
  CHECK_IT_CLOSED(it);
  leveldb::Iterator *_it = LDB_ITERATOR(it);
 
+ caml_enter_blocking_section();
  _it->SeekToLast();
+ caml_leave_blocking_section();
  CAMLreturn(Val_unit);
 }
 
@@ -395,8 +433,14 @@ ldb_it_seek_unsafe(value it, value s, value off, value len)
  CHECK_IT_CLOSED(it);
  leveldb::Iterator *_it = LDB_ITERATOR(it);
 
- leveldb::Slice key(String_val(s) + Int_val(off), Int_val(len));
+ char key_data[Int_val(len)];
+ memcpy(key_data, &Byte_u(s, Int_val(off)), Int_val(len));
+ leveldb::Slice key(key_data, Int_val(len));
+
+ caml_enter_blocking_section();
  _it->Seek(key);
+ caml_leave_blocking_section();
+
  CAMLreturn(Val_unit);
 }
 
@@ -407,7 +451,10 @@ ldb_it_next(value it)
  CHECK_IT_CLOSED(it);
  leveldb::Iterator *_it = LDB_ITERATOR(it);
 
+ caml_enter_blocking_section();
  _it->Next();
+ caml_leave_blocking_section();
+
  CAMLreturn(Val_unit);
 }
 
@@ -418,7 +465,9 @@ ldb_it_prev(value it)
  CHECK_IT_CLOSED(it);
  leveldb::Iterator *_it = LDB_ITERATOR(it);
 
+ caml_enter_blocking_section();
  _it->Prev();
+ caml_leave_blocking_section();
  CAMLreturn(Val_unit);
 }
 
@@ -538,7 +587,9 @@ ldb_write_batch(value t, value batch, value sync, value snapshot)
  if(Val_true == snapshot)
      options.post_write_snapshot = &snap;
 
+ caml_enter_blocking_section();
  leveldb::Status status = db->Write(options, b);
+ caml_leave_blocking_section();
 
  CHECK_ERROR(status);
 
@@ -555,9 +606,16 @@ ldb_get_approximate_size(value t, value _from, value _to)
  leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
- leveldb::Range range(TO_SLICE(_from), TO_SLICE(_to));
+
+ TO_SLICE_COPY(__from, _from);
+ TO_SLICE_COPY(__to, _to);
+
+ leveldb::Range range(__from, __to);
  uint64_t size;
+
+ caml_enter_blocking_section();
  db->GetApproximateSizes(&range, 1, &size);
+ caml_leave_blocking_section();
 
  ret = caml_copy_int64(size);
  CAMLreturn(ret);
@@ -625,46 +683,54 @@ ldb_snapshot_release(value t)
 CAMLprim value
 ldb_snapshot_get(value t, value k)
 {
+ using namespace std;
  CAMLparam2(t, k);
  CAMLlocal1(ret);
  CHECK_SNAPSHOT_CLOSED(t);
  ldb_snapshot *snap = UNWRAP_SNAPSHOT(t);
  leveldb::DB *db = snap->db;
 
- leveldb::Slice key = TO_SLICE(k);
+ TO_SLICE_COPY(key, k);
  leveldb::ReadOptions options;
 
  options.snapshot = snap->snapshot;
 
  std::string v;
- leveldb::Status status = db->Get(options, key, &v);
- if(status.IsNotFound()) { RAISE_NOT_FOUND; }
 
- CHECK_ERROR(status);
+ leveldb::Status status = db->Get(options, key, &v);
+
+ if(status.IsNotFound()) { v.~string(); RAISE_NOT_FOUND; }
+
+ CHECK_ERROR_AND_CLEANUP(status, { v.~string(); });
 
  COPY_FROM(ret, v);
  CAMLreturn(ret);
 }
+
 CAMLprim value
 ldb_snapshot_mem(value t, value k)
 {
+ using namespace std;
  CAMLparam2(t, k);
  CHECK_SNAPSHOT_CLOSED(t);
  ldb_snapshot *snap = UNWRAP_SNAPSHOT(t);
  leveldb::DB *db = snap->db;
 
- leveldb::Slice key = TO_SLICE(k);
+ TO_SLICE_COPY(key, k);
  leveldb::ReadOptions options;
 
  options.snapshot = snap->snapshot;
 
  std::string v;
+
+ caml_enter_blocking_section();
  leveldb::Status status = db->Get(options, key, &v);
+ caml_leave_blocking_section();
 
  if(status.IsNotFound()) CAMLreturn(Val_false);
  if(status.ok ()) CAMLreturn(Val_true);
 
- CHECK_ERROR(status);
+ CHECK_ERROR_AND_CLEANUP(status, { v.~string(); });
 
  CAMLreturn(Val_false);
 }
