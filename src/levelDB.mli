@@ -19,6 +19,24 @@
 
 (** Access to [leveldb] databases. *)
 
+(** {2 Usage in a concurrent setting}
+  *
+  * A database may only be opened by one process at a time; this is enforced
+  * by LevelDB by using a file lock. Within a process, operations on a value
+  * of type [db] (such as {!get}, {!put}, {!iterator}, {!Iterator.make} or
+  * {!Snapshot.make}) can be performed concurrently in different threads.
+  * Values of type [iterator], [writebatch], [snapshot] and [read_access] must
+  * not be used simultaneously from two different threads, so external
+  * synchronization (e.g. using [Mutex]) is required.
+  *
+  * As an exception to the above rule, it is possible to close a [db] with
+  * [iterator], [snapshot] or [read_access] values in use. Values of these
+  * types can also be released/closed in a thread while they are being used in
+  * another. In both cases, the thread that is releasing/closing the value
+  * will wait until the current operation is finished and invalidate the value
+  * so that any further operations on it will fail.
+  *)
+
 (** {2 Exceptions} *)
 
 (** Errors (apart from [Not_found]) are notified with [Error s] exceptions. *)
@@ -73,7 +91,11 @@ val open_db :
   string -> db
 
 (** Close the database. All further operations on it will fail.
-  * Existing snapshots and iterators are released and invalidated.
+  * Existing snapshots, read_access values and iterators are released and
+  * invalidated. If such values are being used in a concurrent thread,
+  * the current thread will wait until the operation is finished and then
+  * proceed to invalidate the value, making any further uses on it fail, and
+  * release it.
   * Note that the database is closed automatically in the finalizer if you
   * don't close it manually. *)
 val close : db -> unit
@@ -81,7 +103,7 @@ val close : db -> unit
 (** Read-only access to the DB. *)
 val read_access : db -> read_access
 
-(** Return a new iterator. *)
+(** Return a new iterator. Refer to {!Iterator.make}. *)
 val iterator : db -> iterator
 
 (** [get_approximate_size from_key to_key] returns the approximate size

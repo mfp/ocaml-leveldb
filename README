@@ -13,9 +13,6 @@ Blocking functions release the OCaml runtime system, allowing to:
 * run them in parallel with other OCaml code
 * perform multiple LevelDB operations in parallel
 
-Note that iterator, snapshot and writebatch values require external
-synchronization if two threads share such values.
-
 Requirements
 ------------
 * OCaml >= 3.12.0
