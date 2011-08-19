@@ -29,6 +29,32 @@ external compare_snapshot_ :
 external compare_iterator_ :
   iterator_ -> iterator_ -> int = "ldb_iterator_compare" "noalloc"
 
+module RMutex =
+struct
+  type t = { mutex : Mutex.t; mutable thread : int option; }
+
+  let make () = { mutex = Mutex.create (); thread = None; }
+
+  let with_lock t f =
+    let id = Thread.id (Thread.self ()) in
+      match t.thread with
+          Some t when t = id -> f ()
+        | _ ->
+            Mutex.lock t.mutex;
+            t.thread <- Some id;
+            try
+              let y = f () in
+                t.thread <- None;
+                Mutex.unlock t.mutex;
+                y
+            with e ->
+              t.thread <- None;
+              Mutex.unlock t.mutex;
+              raise e
+
+  let with_lock t f = f ()
+end
+
 module rec TYPES :
 sig
   module SNAPSHOTS : Set.S with type elt = TYPES.snapshot
@@ -36,6 +62,7 @@ sig
 
   type db =
       { db : db_;
+        mutex : RMutex.t;
         mutable snapshots : SNAPSHOTS.t;
         mutable iterators : ITERATORS.t
       }
@@ -59,6 +86,7 @@ struct
 
   type db =
       { db : db_;
+        mutex : RMutex.t;
         mutable snapshots : SNAPSHOTS.t;
         mutable iterators : ITERATORS.t
       }
@@ -119,22 +147,29 @@ external release_snapshot_ : snapshot_ -> unit = "ldb_snapshot_release"
 external close_iterator_ : iterator_ -> unit = "ldb_iter_close"
 
 let release_snapshot s =
-  s.s_parent.snapshots <- SNAPSHOTS.remove s s.s_parent.snapshots;
+  (* we need a recursive mutex here because SNAPSHOTS.remove could trigger a
+   * GC run that executes a finalizer which releases another snapshot or
+   * iterator *)
+  RMutex.with_lock s.s_parent.mutex
+    (fun () -> s.s_parent.snapshots <- SNAPSHOTS.remove s s.s_parent.snapshots);
   release_snapshot_ s.s_handle
 
 let close_iterator it =
-  it.i_parent.iterators <- ITERATORS.remove it it.i_parent.iterators;
+  RMutex.with_lock it.i_parent.mutex
+    (fun () -> it.i_parent.iterators <- ITERATORS.remove it it.i_parent.iterators);
   close_iterator_ it.i_handle
 
 let add_snapshot_to_db s_parent s_handle =
   let s = { s_handle; s_parent } in
-    s_parent.snapshots <- SNAPSHOTS.add s s_parent.snapshots;
+    RMutex.with_lock s_parent.mutex
+      (fun () -> s_parent.snapshots <- SNAPSHOTS.add s s_parent.snapshots);
     Gc.finalise release_snapshot s;
     s
 
 let add_iterator_to_db db handle =
   let it = { i_handle = handle; i_parent = db } in
-    db.iterators <- ITERATORS.add it db.iterators;
+    RMutex.with_lock db.mutex
+      (fun () -> db.iterators <- ITERATORS.add it db.iterators);
     Gc.finalise close_iterator it;
     it
 
@@ -323,7 +358,10 @@ let open_db
   let db = open_db_
     ~write_buffer_size ~max_open_files ~block_size ~block_restart_interval
     ~comparator path in
-  let db = { db; snapshots = SNAPSHOTS.empty; iterators = ITERATORS.empty; } in
+  let mutex = RMutex.make () in
+  let db =
+    { db; mutex; snapshots = SNAPSHOTS.empty; iterators = ITERATORS.empty; }
+  in
     Gc.finalise close db;
     db
 
