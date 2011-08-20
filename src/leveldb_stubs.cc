@@ -40,7 +40,7 @@ typedef struct ldb_any {
   void *data;
   void (*release)(void *);
   bool closed;
-  bool in_use;
+  bool *in_use;
   bool auto_finalize;
 } ldb_any;
 
@@ -53,7 +53,7 @@ typedef struct {
     const leveldb::Snapshot *snapshot;
     leveldb::DB *db;
     bool closed;
-    bool in_use;
+    bool *in_use;
 } ldb_snapshot;
 
 static void ldb_any_finalize(value t);
@@ -74,7 +74,8 @@ static long ldb_any_hash(value t);
       _dst = caml_alloc_custom(&ldb_any_ops, sizeof(ldb_any), 0, 1); \
       LDB_ANY(_dst)->data = p; \
       LDB_ANY(_dst)->closed = false; \
-      LDB_ANY(_dst)->in_use = false; \
+      LDB_ANY(_dst)->in_use = (bool *)malloc(sizeof(bool)); \
+      *(LDB_ANY(_dst)->in_use) = false; \
       LDB_ANY(_dst)->auto_finalize = _auto_release; \
       LDB_ANY(_dst)->release = (void (*)(void *))release_##_type; \
   } while(0);
@@ -137,51 +138,48 @@ static void raise_error(const char *s)
 
 #define CHECK_CLOSED(t) \
     do { \
-      if(LDB_ANY(t)->closed || !LDB_HANDLE(t)) raise_error("leveldb handle closed"); \
+      if(LDB_ANY(t)->closed || !LDB_ANY(t)->in_use || !LDB_HANDLE(t)) \
+        raise_error("leveldb handle closed"); \
     } while(0);
 
 #define CHECK_IT_CLOSED(_it) \
     do { \
-      if(LDB_ANY(_it)->closed || !LDB_ITERATOR(_it)) raise_error("iterator closed"); \
+      if(LDB_ANY(_it)->closed || !LDB_ANY(_it)->in_use || !LDB_ITERATOR(_it)) \
+        raise_error("iterator closed"); \
     } while(0);
 
 #define CHECK_SNAPSHOT_CLOSED(_s) \
     do { \
-      if(UNWRAP_SNAPSHOT(_s)->closed || !UNWRAP_SNAPSHOT(_s)->snapshot) \
+      if(UNWRAP_SNAPSHOT(_s)->closed || !UNWRAP_SNAPSHOT(_s)->in_use || \
+         !UNWRAP_SNAPSHOT(_s)->snapshot) \
         raise_error("invalid snapshot"); \
     } while(0);
 
-#define USE_HANDLE(t, func) \
-    do { \
-        CHECK_CLOSED(t); \
-        LDB_ANY(t)->in_use = true; \
-    } while(0);
+#define USE_HANDLE(t) \
+    bool *__resource_in_use__##t = LDB_ANY(t)->in_use; \
+    CHECK_CLOSED(t); \
+    *__resource_in_use__##t = true;
 
 #define USE_IT(t) \
-    do { \
-        CHECK_IT_CLOSED(t); \
-        LDB_ANY(t)->in_use = true; \
-    } while(0);
+    bool *__resource_in_use__##t = LDB_ANY(t)->in_use; \
+    CHECK_IT_CLOSED(t); \
+    *__resource_in_use__##t = true;
 
 #define USE_SNAPSHOT(t) \
-    do { \
-        CHECK_SNAPSHOT_CLOSED(t); \
-        UNWRAP_SNAPSHOT(t)->in_use = true; \
-    } while(0);
+    bool *__resource_in_use__##t = UNWRAP_SNAPSHOT(t)->in_use; \
+    CHECK_SNAPSHOT_CLOSED(t); \
+    *__resource_in_use__##t = true;
 
 #define RELEASE(t) \
     do { \
-        LDB_ANY(t)->in_use = false; \
+        *__resource_in_use__##t = false; \
     } while(0);
 
 #define RELEASE_HANDLE(t)  RELEASE(t)
 
 #define RELEASE_IT(t) RELEASE(t)
 
-#define RELEASE_SNAPSHOT(t) \
-    do { \
-        UNWRAP_SNAPSHOT(t)->in_use = false; \
-    } while(0);
+#define RELEASE_SNAPSHOT(t) RELEASE(t)
 
 static void
 ldb_any_finalize(value t)
@@ -190,15 +188,21 @@ ldb_any_finalize(value t)
 
  h->closed = true;
  // wait until the resource is not being used in another thread
- while(h->in_use) {
+ while(h->in_use && *(h->in_use)) {
      struct timeval tv;
      tv.tv_sec = 0;
      tv.tv_usec = 1000;
      select(0, NULL, NULL, NULL, &tv);
  }
- if(h->auto_finalize && h->data) {
-     h->release(h->data);
-     h->data = NULL;
+ if(h->auto_finalize) {
+     if(h->data) {
+         h->release(h->data);
+         h->data = NULL;
+     }
+     if(h->in_use) {
+         free(h->in_use);
+         h->in_use = NULL;
+     }
  }
 }
 
@@ -321,7 +325,7 @@ ldb_get(value t, value k)
  CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
- USE_HANDLE(t, get);
+ USE_HANDLE(t);
 
  TO_SLICE_COPY(key, k);
 
@@ -354,7 +358,8 @@ maybe_return_snapshot(const leveldb::Snapshot *snap, leveldb::DB *db)
      UNWRAP_SNAPSHOT(wrapped_snapshot)->db = db;
      UNWRAP_SNAPSHOT(wrapped_snapshot)->snapshot = snap;
      UNWRAP_SNAPSHOT(wrapped_snapshot)->closed = false;
-     UNWRAP_SNAPSHOT(wrapped_snapshot)->in_use = false;
+     UNWRAP_SNAPSHOT(wrapped_snapshot)->in_use = (bool *)malloc(sizeof(bool));
+     *(UNWRAP_SNAPSHOT(wrapped_snapshot)->in_use) = false;
      ret = caml_alloc_small(1, 0);
      Store_field(ret, 0, wrapped_snapshot);
  }
@@ -370,7 +375,7 @@ ldb_put(value t, value k, value v, value sync, value snapshot)
  CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
- USE_HANDLE(t, put);
+ USE_HANDLE(t);
  TO_SLICE_COPY(key, k);
 
  std::string val(String_val(v), string_length(v));
@@ -403,7 +408,7 @@ ldb_delete(value t, value k, value sync, value snapshot)
  CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
- USE_HANDLE(t, delete);
+ USE_HANDLE(t);
 
  TO_SLICE_COPY(key, k);
 
@@ -435,7 +440,7 @@ ldb_mem(value t, value k)
  CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
- USE_HANDLE(t, mem);
+ USE_HANDLE(t);
 
  TO_SLICE_COPY(key, k);
  std::string v;
@@ -670,7 +675,7 @@ ldb_write_batch(value t, value batch, value sync, value snapshot)
  leveldb::DB *db = LDB_HANDLE(t);
  leveldb::WriteBatch *b = LDB_WRITEBATCH(batch);
 
- USE_HANDLE(t, write_batch);
+ USE_HANDLE(t);
  leveldb::WriteOptions options;
  const leveldb::Snapshot *snap = NULL;
  options.sync = (Val_true == sync);
@@ -696,7 +701,7 @@ ldb_get_approximate_size(value t, value _from, value _to)
  CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
- USE_HANDLE(t, get_approximate_size);
+ USE_HANDLE(t);
 
  TO_SLICE_COPY(__from, _from);
  TO_SLICE_COPY(__to, _to);
@@ -740,7 +745,7 @@ ldb_snapshot_finalize(value t)
  s->closed = true;
 
  // wait until the resource is not being used in another thread
- while(s->in_use) {
+ while(s->in_use && *(s->in_use)) {
      struct timeval tv;
      tv.tv_sec = 0;
      tv.tv_usec = 1000;
@@ -749,6 +754,10 @@ ldb_snapshot_finalize(value t)
  if(s->snapshot) {
      s->db->ReleaseSnapshot(s->snapshot);
      s->snapshot = NULL;
+ }
+ if(s->in_use) {
+     free(s->in_use);
+     s->in_use = NULL;
  }
 }
 
@@ -772,7 +781,8 @@ ldb_snapshot_make(value t)
  _ret->db = db;
  _ret->snapshot = snapshot;
  _ret->closed = false;
- _ret->in_use = false;
+ _ret->in_use = (bool *)malloc(sizeof(bool));
+ *(_ret->in_use) = false;
  CAMLreturn(ret);
 }
 
