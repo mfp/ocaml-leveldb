@@ -181,6 +181,37 @@ static void raise_error(const char *s)
 
 #define RELEASE_SNAPSHOT(t) RELEASE(t)
 
+#if SIZEOF_PTR < 8
+
+// see http://www.concentric.net/~ttwang/tech/inthash.htm
+int32_t hash_ptr(void *x)
+{
+  int32_t key = (int32_t)x;
+  key = ~key + (key << 15); // key = (key << 15) - key - 1;
+  key = key ^ (key >> 12);
+  key = key + (key << 2);
+  key = key ^ (key >> 4);
+  key = key * 2057; // key = (key + (key << 3)) + (key << 11);
+  key = key ^ (key >> 16);
+  return (int32_t)key;
+}
+
+#else
+
+int64_t hash_ptr(void *x)
+{
+  int64_t key = (int64_t)x;
+  key = (~key) + (key << 21); // key = (key << 21) - key - 1;
+  key = key ^ (key >> 24);
+  key = (key + (key << 3)) + (key << 8); // key * 265
+  key = key ^ (key >> 14);
+  key = (key + (key << 2)) + (key << 4); // key * 21
+  key = key ^ (key >> 28);
+  key = key + (key << 31);
+  return (int64_t)key;
+}
+#endif
+
 static void
 ldb_any_finalize(value t)
 {
@@ -218,7 +249,19 @@ ldb_any_compare(value t1, value t2)
 static long
 ldb_any_hash(value t)
 {
- return (long)LDB_ANY(t)->data;
+ return hash_ptr(LDB_ANY(t)->data);
+}
+
+CAMLprim value
+ldb_snapshot_hash(value t1)
+{
+ return Val_long(ldb_any_hash(t1));
+}
+
+CAMLprim value
+ldb_iterator_hash(value t1)
+{
+ return Val_long(ldb_any_hash(t1));
 }
 
 static void release_DB(leveldb::DB *db)

@@ -23,11 +23,8 @@ type writebatch
 type iterator_
 type comparator
 
-external compare_snapshot_ :
-  snapshot_ -> snapshot_ -> int = "ldb_snapshot_compare" "noalloc"
-
-external compare_iterator_ :
-  iterator_ -> iterator_ -> int = "ldb_iterator_compare" "noalloc"
+external hash_snapshot_ : snapshot_ -> int = "ldb_snapshot_hash" "noalloc"
+external hash_iterator_ : iterator_ -> int = "ldb_iterator_hash" "noalloc"
 
 module RMutex =
 struct
@@ -57,38 +54,38 @@ end
 
 module rec TYPES :
 sig
-  module SNAPSHOTS : Set.S with type elt = TYPES.snapshot
-  module ITERATORS : Set.S with type elt = TYPES.iterator
+  module SNAPSHOTS : Weak.S with type data = TYPES.snapshot
+  module ITERATORS : Weak.S with type data = TYPES.iterator
 
   type db =
       { db : db_;
         mutex : RMutex.t;
-        mutable snapshots : SNAPSHOTS.t;
-        mutable iterators : ITERATORS.t
+        snapshots : SNAPSHOTS.t;
+        iterators : ITERATORS.t
       }
   type snapshot = { s_parent : db; s_handle : snapshot_ }
   type iterator = { i_parent : db; i_handle : iterator_ }
 end =
 struct
   module SNAPSHOTS =
-    Set.Make(struct
-               type t = TYPES.snapshot
-               let compare s1 s2 =
-                 compare_snapshot_ s1.TYPES.s_handle s2.TYPES.s_handle
+    Weak.Make(struct
+                type t = TYPES.snapshot
+                let hash t = hash_snapshot_ t.TYPES.s_handle
+                let equal t1 t2 = t1 == t2
              end)
 
   module ITERATORS =
-    Set.Make(struct
-               type t = TYPES.iterator
-               let compare i1 i2 =
-                 compare_iterator_ i1.TYPES.i_handle i2.TYPES.i_handle
+    Weak.Make(struct
+                type t = TYPES.iterator
+                let hash t = hash_iterator_ t.TYPES.i_handle
+                let equal t1 t2 = t1 == t2
              end)
 
   type db =
       { db : db_;
         mutex : RMutex.t;
-        mutable snapshots : SNAPSHOTS.t;
-        mutable iterators : ITERATORS.t
+        snapshots : SNAPSHOTS.t;
+        iterators : ITERATORS.t
       }
 
   type snapshot = { s_parent : db; s_handle : snapshot_ }
@@ -151,25 +148,24 @@ let release_snapshot s =
    * GC run that executes a finalizer which releases another snapshot or
    * iterator *)
   RMutex.with_lock s.s_parent.mutex
-    (fun () -> s.s_parent.snapshots <- SNAPSHOTS.remove s s.s_parent.snapshots);
+    (fun () -> SNAPSHOTS.remove s.s_parent.snapshots s);
   release_snapshot_ s.s_handle
 
 let close_iterator it =
   RMutex.with_lock it.i_parent.mutex
-    (fun () -> it.i_parent.iterators <- ITERATORS.remove it it.i_parent.iterators);
+    (fun () -> ITERATORS.remove it.i_parent.iterators it);
   close_iterator_ it.i_handle
 
 let add_snapshot_to_db s_parent s_handle =
   let s = { s_handle; s_parent } in
     RMutex.with_lock s_parent.mutex
-      (fun () -> s_parent.snapshots <- SNAPSHOTS.add s s_parent.snapshots);
+      (fun () -> SNAPSHOTS.add s_parent.snapshots s);
     Gc.finalise release_snapshot s;
     s
 
 let add_iterator_to_db db handle =
   let it = { i_handle = handle; i_parent = db } in
-    RMutex.with_lock db.mutex
-      (fun () -> db.iterators <- ITERATORS.add it db.iterators);
+    RMutex.with_lock db.mutex (fun () -> ITERATORS.add db.iterators it);
     Gc.finalise close_iterator it;
     it
 
@@ -327,9 +323,7 @@ struct
   let mem s k = mem_ s.s_handle k
 
   let iterator s =
-    let it = { i_handle = iterator_ s.s_handle; i_parent = s.s_parent } in
-      s.s_parent.iterators <- ITERATORS.add it s.s_parent.iterators;
-      it
+    add_iterator_to_db s.s_parent (iterator_ s.s_handle)
 
   let get t k = try Some (get_exn t k) with Not_found -> None
 
@@ -360,7 +354,9 @@ let open_db
     ~comparator path in
   let mutex = RMutex.make () in
   let db =
-    { db; mutex; snapshots = SNAPSHOTS.empty; iterators = ITERATORS.empty; }
+    { db; mutex;
+      snapshots = SNAPSHOTS.create 13; iterators = ITERATORS.create 13;
+    }
   in
     Gc.finalise close db;
     db
