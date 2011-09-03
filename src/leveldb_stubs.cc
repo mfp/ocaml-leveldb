@@ -39,6 +39,7 @@ extern "C" {
 typedef struct ldb_any {
   void *data;
   void (*release)(void *);
+  intnat id; // signed int w/ same size as pointer
   bool closed;
   bool *in_use;
   bool auto_finalize;
@@ -52,6 +53,7 @@ typedef struct { leveldb::WriteBatch *batch; } ldb_writebatch;
 typedef struct {
     const leveldb::Snapshot *snapshot;
     leveldb::DB *db;
+    intnat id;
     bool closed;
     bool *in_use;
 } ldb_snapshot;
@@ -59,6 +61,8 @@ typedef struct {
 static void ldb_any_finalize(value t);
 static int ldb_any_compare(value t1, value t2);
 static long ldb_any_hash(value t);
+
+static intnat wrapped_val_id = 1;
 
 #define LDB_ANY(x) ((ldb_any *) Data_custom_val(x))
 
@@ -74,6 +78,7 @@ static long ldb_any_hash(value t);
       _dst = caml_alloc_custom(&ldb_any_ops, sizeof(ldb_any), 0, 1); \
       LDB_ANY(_dst)->data = p; \
       LDB_ANY(_dst)->closed = false; \
+      LDB_ANY(_dst)->id = ++wrapped_val_id; \
       LDB_ANY(_dst)->in_use = (bool *)malloc(sizeof(bool)); \
       *(LDB_ANY(_dst)->in_use) = false; \
       LDB_ANY(_dst)->auto_finalize = _auto_release; \
@@ -90,13 +95,14 @@ static struct custom_operations ldb_any_ops = {
 };
 
 static void ldb_snapshot_finalize(value);
+static long ldb_snapshot_hash_(value);
 
 static struct custom_operations ldb_snapshot_ops =
 {
  (char *)"org.eigenclass/leveldb_snapshot",
  ldb_snapshot_finalize,
  ldb_any_compare,
- ldb_any_hash,
+ ldb_snapshot_hash_,
  custom_serialize_default,
  custom_deserialize_default
 };
@@ -184,9 +190,11 @@ static void raise_error(const char *s)
 #if SIZEOF_PTR < 8
 
 // see http://www.concentric.net/~ttwang/tech/inthash.htm
-int32_t hash_ptr(void *x)
+int32_t hash_int(int32_t key)
 {
-  int32_t key = (int32_t)x;
+  // >> is implementation-dependent, we assume it's arithmetic and hope for
+  // the best (most compilers will do arithmetic if the int is signed; GCC,
+  // for one, does)
   key = ~key + (key << 15); // key = (key << 15) - key - 1;
   key = key ^ (key >> 12);
   key = key + (key << 2);
@@ -198,9 +206,8 @@ int32_t hash_ptr(void *x)
 
 #else
 
-int64_t hash_ptr(void *x)
+int64_t hash_int(int64_t key)
 {
-  int64_t key = (int64_t)x;
   key = (~key) + (key << 21); // key = (key << 21) - key - 1;
   key = key ^ (key >> 24);
   key = (key + (key << 3)) + (key << 8); // key * 265
@@ -249,13 +256,19 @@ ldb_any_compare(value t1, value t2)
 static long
 ldb_any_hash(value t)
 {
- return hash_ptr(LDB_ANY(t)->data);
+ return hash_int(LDB_ANY(t)->id);
+}
+
+static long
+ldb_snapshot_hash_(value t1)
+{
+  return hash_int(UNWRAP_SNAPSHOT(t1)->id);
 }
 
 CAMLprim value
 ldb_snapshot_hash(value t1)
 {
- return Val_long(ldb_any_hash(t1));
+ return Val_long(ldb_snapshot_hash_(t1));
 }
 
 CAMLprim value
@@ -400,6 +413,7 @@ maybe_return_snapshot(const leveldb::Snapshot *snap, leveldb::DB *db)
      wrapped_snapshot = caml_alloc_custom(&ldb_snapshot_ops, sizeof(ldb_snapshot), 0, 1);
      UNWRAP_SNAPSHOT(wrapped_snapshot)->db = db;
      UNWRAP_SNAPSHOT(wrapped_snapshot)->snapshot = snap;
+     UNWRAP_SNAPSHOT(wrapped_snapshot)->id = ++wrapped_val_id;
      UNWRAP_SNAPSHOT(wrapped_snapshot)->closed = false;
      UNWRAP_SNAPSHOT(wrapped_snapshot)->in_use = (bool *)malloc(sizeof(bool));
      *(UNWRAP_SNAPSHOT(wrapped_snapshot)->in_use) = false;
