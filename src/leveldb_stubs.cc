@@ -60,7 +60,7 @@ typedef struct {
 
 static void ldb_any_finalize(value t);
 static int ldb_any_compare(value t1, value t2);
-static long ldb_any_hash(value t);
+static intnat ldb_any_hash(value t);
 
 static intnat wrapped_val_id = 1;
 
@@ -95,7 +95,7 @@ static struct custom_operations ldb_any_ops = {
 };
 
 static void ldb_snapshot_finalize(value);
-static long ldb_snapshot_hash_(value);
+static intnat ldb_snapshot_hash_(value);
 
 static struct custom_operations ldb_snapshot_ops =
 {
@@ -253,13 +253,13 @@ ldb_any_compare(value t1, value t2)
  return ((char*)h1->data - (char *)h2->data);
 }
 
-static long
+static intnat
 ldb_any_hash(value t)
 {
  return hash_int(LDB_ANY(t)->id);
 }
 
-static long
+static intnat
 ldb_snapshot_hash_(value t1)
 {
   return hash_int(UNWRAP_SNAPSHOT(t1)->id);
