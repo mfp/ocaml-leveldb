@@ -8,7 +8,7 @@ OCamlProgram(benchmark, benchmark)
 
 OCamlProgram(test, $(removesuffix $(ls test_*.ml)) test)
 
-.DEFAULT: benchmark test
+.DEFAULT: benchmark.opt test.opt
 
 .PHONY: clean
 
