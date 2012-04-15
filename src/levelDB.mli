@@ -132,17 +132,9 @@ val mem : db -> string -> bool
   * @param sync whether to write synchronously (default: false) *)
 val put : db -> ?sync:bool -> string -> string -> unit
 
-(** [put_and_snapshot ?sync key value] proceeds like [put ?sync key value] and
-  * returns a snapshot of the database immediately after the write. *)
-val put_and_snapshot : db -> ?sync:bool -> string -> string -> snapshot
-
 (** [delete ?sync key] deletes the binding for the given key.
   * @param sync whether to write synchronously (default: false) *)
 val delete : db -> ?sync:bool -> string -> unit
-
-(** Proceed like {!delete}, and return a snapshot of the database immediately
-  * after the write. *)
-val delete_and_snapshot : db -> ?sync:bool -> string -> snapshot
 
 (** {3 Iteration} *)
 
@@ -197,10 +189,6 @@ sig
   (** Apply the batch operation atomically.
     * @param sync whether to write synchronously (default: false) *)
   val write : db -> ?sync:bool -> writebatch -> unit
-
-  (** Proceed like {!write}, and return a snapshot of the database immediately
-    * after the write. *)
-  val write_and_snapshot : db -> ?sync:bool -> writebatch -> snapshot
 end
 
 (** {2 Iterators} *)

@@ -170,33 +170,6 @@ struct
             ["a", "1"; "b", "bb"; "c", "cc"; "f", "2"; "w", "ww"; "x", "xx"]
             it
 
-  let test_put_and_snapshot db =
-    let s = L.put_and_snapshot db "test_put_and_snapshot" "1" in
-      L.put db "test_put_and_snapshot" "2";
-      aeq_value "1" (S.get s "test_put_and_snapshot");
-      aeq_value "2" (L.get db "test_put_and_snapshot");
-      S.release s
-
-  let test_delete_and_snapshot db =
-    L.put db "test_delete_and_snapshot" "1";
-    let s = L.delete_and_snapshot db "test_put_and_snapshot" in
-      L.put db "test_delete_and_snapshot" "2";
-      aeq_none ~msg:"No value should be found in snapshot"
-        (S.get s "test_put_and_snapshot");
-      S.release s
-
-  let test_write_and_snapshot db =
-    let b = B.make () in
-      B.put b "a" "1";
-      B.put b "a" "2";
-      B.put b "b" "1";
-      let s = B.write_and_snapshot db b in
-        L.delete db "b";
-        L.put db "a" "3";
-        aeq_value "2" (S.get s "a");
-        aeq_value "1" (S.get s "b");
-        S.release s
-
   let test_db_closed_before_release db =
     let s = S.make db in
       L.close db;
@@ -241,9 +214,6 @@ struct
     [
       "isolation", test_isolation;
       "iterator", test_iterator;
-      "put_and_snapshot", test_put_and_snapshot;
-      "delete_and_snapshot", test_delete_and_snapshot;
-      "write_and_snapshot", test_write_and_snapshot;
       "DB closed before snapshot release", test_db_closed_before_release;
       "snapshot released when iterator in use", test_release_when_iterator_in_use;
       "batch operations", test_batch_ops;

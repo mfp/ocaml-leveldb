@@ -126,11 +126,9 @@ external open_db_ :
 external close_ : db_ -> unit = "ldb_close"
 external get_exn_ : db_ -> string -> string = "ldb_get"
 
-external put_ : db_ -> string -> string -> sync:bool -> snapshot:bool ->
-  snapshot_ option = "ldb_put"
+external put_ : db_ -> string -> string -> sync:bool -> unit = "ldb_put"
 
-external delete_ : db_ -> string -> sync:bool -> snapshot:bool ->
-  snapshot_ option = "ldb_delete"
+external delete_ : db_ -> string -> sync:bool -> unit = "ldb_delete"
 
 external mem_ : db_ -> string -> bool = "ldb_mem"
 
@@ -203,16 +201,10 @@ struct
       error "Snapshot.delete_substring: invalid key substring";
     delete_substring_unsafe b k off len
 
-  external write : db_ -> writebatch -> sync:bool -> snapshot:bool ->
-    snapshot_ option = "ldb_write_batch"
-
-  let write_and_snapshot db ?(sync = false) writebatch =
-    match write db.db writebatch ~sync ~snapshot:true with
-        None -> assert false
-      | Some s_handle -> add_snapshot_to_db db s_handle
+  external write : db_ -> writebatch -> sync:bool -> unit = "ldb_write_batch"
 
   let write db ?(sync = false) writebatch =
-    ignore (write db.db writebatch ~sync ~snapshot:false)
+    write db.db writebatch ~sync
 end
 
 module Iterator =
@@ -373,21 +365,11 @@ let read_access db =
 
 let iterator db = Iterator.make db
 
-let delete_and_snapshot db ?(sync = false) k =
-  match delete_ db.db ~sync ~snapshot:true k with
-      None -> assert false
-    | Some s -> add_snapshot_to_db db s
-
 let delete db ?(sync = false) k =
-  ignore (delete_ db.db ~sync ~snapshot:false k)
-
-let put_and_snapshot db ?(sync = false) k v =
-  match put_ db.db ~sync ~snapshot:true k v with
-      None -> assert false
-    | Some s -> add_snapshot_to_db db s
+  delete_ db.db ~sync k
 
 let put db ?(sync = false) k v =
-  ignore (put_ db.db ~sync ~snapshot:false k v)
+  put_ db.db ~sync k v
 
 let iter f db = Iterator.iter f (Iterator.make db)
 let rev_iter f db = Iterator.rev_iter f (Iterator.make db)

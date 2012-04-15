@@ -9,8 +9,9 @@ leveldb_stubs.o: leveldb_stubs.cc
 section
     leveldb.cma leveldb.a leveldb.cmxa: \
 	leveldb_stubs.o levelDB.cmx levelDB.cmo ../leveldb/libleveldb.a
-	ocamlmklib -verbose \
-	    -oc camlleveldb -o leveldb -L../leveldb -lleveldb -lsnappy $^
+	ocamlmklib \
+	    -oc camlleveldb -o leveldb -L../leveldb \
+	    -ltcmalloc -lleveldb -lsnappy $^
 
 toplevel: leveldb.cma libcamlleveldb.a
 	ocamlmktop -cc g++ -ccopt -Wno-write-strings \

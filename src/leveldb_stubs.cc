@@ -402,34 +402,11 @@ ldb_get(value t, value k)
  CAMLreturn(ret);
 }
 
-static value
-maybe_return_snapshot(const leveldb::Snapshot *snap, leveldb::DB *db)
-{
- CAMLparam0();
- CAMLlocal2(ret, wrapped_snapshot);
-
- ret = Val_unit;
- if(snap) {
-     wrapped_snapshot = caml_alloc_custom(&ldb_snapshot_ops, sizeof(ldb_snapshot), 0, 1);
-     UNWRAP_SNAPSHOT(wrapped_snapshot)->db = db;
-     UNWRAP_SNAPSHOT(wrapped_snapshot)->snapshot = snap;
-     UNWRAP_SNAPSHOT(wrapped_snapshot)->id = ++wrapped_val_id;
-     UNWRAP_SNAPSHOT(wrapped_snapshot)->closed = false;
-     UNWRAP_SNAPSHOT(wrapped_snapshot)->in_use = (bool *)malloc(sizeof(bool));
-     *(UNWRAP_SNAPSHOT(wrapped_snapshot)->in_use) = false;
-     ret = caml_alloc_small(1, 0);
-     Store_field(ret, 0, wrapped_snapshot);
- }
-
- CAMLreturn(ret);
-}
-
 CAMLprim value
-ldb_put(value t, value k, value v, value sync, value snapshot)
+ldb_put(value t, value k, value v, value sync)
 {
  using namespace std;
  CAMLparam3(t, k, v);
- CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
  USE_HANDLE(t);
@@ -438,12 +415,8 @@ ldb_put(value t, value k, value v, value sync, value snapshot)
  std::string val(String_val(v), string_length(v));
 
  leveldb::WriteOptions options;
- const leveldb::Snapshot *snap = NULL;
 
  options.sync = (Val_true == sync);
-
- if(Val_true == snapshot)
-     options.post_write_snapshot = &snap;
 
  caml_enter_blocking_section();
  leveldb::Status status = db->Put(options, key, val);
@@ -452,17 +425,14 @@ ldb_put(value t, value k, value v, value sync, value snapshot)
 
  CHECK_ERROR_AND_CLEANUP(status, { val.~string(); });
 
- ret = maybe_return_snapshot(snap, db);
-
- CAMLreturn(ret);
+ CAMLreturn(Val_unit);
 }
 
 
 CAMLprim value
-ldb_delete(value t, value k, value sync, value snapshot)
+ldb_delete(value t, value k, value sync)
 {
  CAMLparam2(t, k);
- CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
  USE_HANDLE(t);
@@ -470,12 +440,8 @@ ldb_delete(value t, value k, value sync, value snapshot)
  TO_SLICE_COPY(key, k);
 
  leveldb::WriteOptions options;
- const leveldb::Snapshot *snap = NULL;
 
  options.sync = (Val_true == sync);
-
- if(Val_true == snapshot)
-     options.post_write_snapshot = &snap;
 
  caml_enter_blocking_section();
  leveldb::Status status = db->Delete(options, key);
@@ -484,9 +450,7 @@ ldb_delete(value t, value k, value sync, value snapshot)
 
  CHECK_ERROR(status);
 
- ret = maybe_return_snapshot(snap, db);
-
- CAMLreturn(ret);
+ CAMLreturn(Val_unit);
 }
 
 CAMLprim value
@@ -494,7 +458,6 @@ ldb_mem(value t, value k)
 {
  using namespace std;
  CAMLparam2(t, k);
- CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
 
  USE_HANDLE(t);
@@ -725,19 +688,15 @@ ldb_writebatch_delete_substring_unsafe(value t, value k, value off, value len)
 }
 
 CAMLprim value
-ldb_write_batch(value t, value batch, value sync, value snapshot)
+ldb_write_batch(value t, value batch, value sync)
 {
  CAMLparam2(t, batch);
- CAMLlocal1(ret);
  leveldb::DB *db = LDB_HANDLE(t);
  leveldb::WriteBatch *b = LDB_WRITEBATCH(batch);
 
  USE_HANDLE(t);
  leveldb::WriteOptions options;
- const leveldb::Snapshot *snap = NULL;
  options.sync = (Val_true == sync);
- if(Val_true == snapshot)
-     options.post_write_snapshot = &snap;
 
  caml_enter_blocking_section();
  leveldb::Status status = db->Write(options, b);
@@ -746,9 +705,7 @@ ldb_write_batch(value t, value batch, value sync, value snapshot)
 
  CHECK_ERROR(status);
 
- ret = maybe_return_snapshot(snap, db);
-
- CAMLreturn(ret);
+ CAMLreturn(Val_unit);
 }
 
 CAMLprim value
