@@ -14,7 +14,7 @@ section
 
 toplevel: leveldb.cma libcamlleveldb.a
 	ocamlmktop -cc g++ -ccopt -Wno-write-strings \
-	    -verbose -o toplevel -cclib -L. leveldb.cma
+	    -o toplevel -cclib -L. unix.cma threads.cma leveldb.cma -thread
 
 .DEFAULT: leveldb.cma leveldb.cmxa
 
