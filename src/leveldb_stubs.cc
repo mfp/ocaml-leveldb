@@ -751,6 +751,34 @@ ldb_get_property(value t, value s)
  CAMLreturn(ret);
 }
 
+CAMLprim value
+ldb_compact_range(value t, value begin, value end)
+{
+ CAMLparam3(t, begin, end);
+ leveldb::DB *db = LDB_HANDLE(t);
+
+ USE_HANDLE(t);
+
+#define CPP_STRING(x) std::string(String_val(x), string_length(x))
+
+ std::string begin_s =
+     Is_block(begin) ? CPP_STRING(Field(begin, 0)) : std::string("");
+
+ std::string end_s =
+     Is_block(end) ? CPP_STRING(Field(end, 0)) : std::string("");
+
+ leveldb::Slice begin_(begin_s), end_(end_s);
+
+ caml_enter_blocking_section();
+ db->CompactRange(Is_block(begin) ? &begin_ : NULL,
+                  Is_block(end) ? &end_ : NULL);
+ RELEASE_HANDLE(t);
+ caml_leave_blocking_section();
+
+ CAMLreturn(Val_unit);
+}
+
+
 static void
 ldb_snapshot_finalize(value t)
 {

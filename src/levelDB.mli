@@ -113,6 +113,11 @@ val get_approximate_size : db -> string -> string -> Int64.t
 (** Return the specified property, if existent. *)
 val get_property : db -> string -> string option
 
+(** Compact specified range. [None] is treated as a key before (resp. after)
+  * all keys in the database; therefore [compact_range db None None] will
+  * compact the whole DB. *)
+val compact_range : db -> from_key:string option -> to_key:string option -> unit
+
 (** {2 Read/write} *)
 
 (** Note that in the following functions the contents of the key will be

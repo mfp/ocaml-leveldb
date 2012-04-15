@@ -126,6 +126,13 @@ let () =
   let n = 1_000_000 in
   let seed = 0 in
 
+  let compact () =
+    print_endline "Compacting...";
+    let db = LDB.open_db "/tmp/ldb" in
+      LDB.compact_range db ~from_key:(Some "") ~to_key:None;
+      LDB.close db;
+      print_endline "DONE" in
+
   let print_stats () =
     let db = LDB.open_db "/tmp/ldb" in
       begin match LDB.get_property db "leveldb.stats" with
@@ -150,10 +157,16 @@ let () =
         `O ("put", bm_put);
         `O ("get", bm_get);
         `O ("Iterator.value", bm_iter_value);
+        `E compact;
+        `O ("get", bm_get);
+        `O ("Iterator.value", bm_iter_value);
         `Clear;
         `O ("sync put", downscale 50 bm_put_sync);
         `Clear;
         `O ("batch put", bm_batch_put_sync);
+        `O ("seq scan", bm_iter_seq_scan);
+        `O ("rev scan", bm_iter_rev_scan);
+        `E compact;
         `O ("seq scan", bm_iter_seq_scan);
         `O ("rev scan", bm_iter_rev_scan);
         `E print_stats;

@@ -138,6 +138,9 @@ external get_approximate_size_ : db_ -> string -> string -> Int64.t =
 external get_property_ : db_ -> string -> string option =
   "ldb_get_property"
 
+external compact_range_ : db_ -> string option -> string option -> unit =
+  "ldb_compact_range"
+
 external release_snapshot_ : snapshot_ -> unit = "ldb_snapshot_release"
 external close_iterator_ : iterator_ -> unit = "ldb_iter_close"
 
@@ -378,3 +381,4 @@ let rev_iter_from f db k = Iterator.rev_iter_from f (Iterator.make db) k
 
 let get_approximate_size db k1 k2 = get_approximate_size_ db.db k1 k2
 let get_property db k = get_property_ db.db k
+let compact_range db ~from_key ~to_key = compact_range_ db.db from_key to_key
