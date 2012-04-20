@@ -6,18 +6,19 @@ CFLAGS += -g -Wall -O2 -I../leveldb/include -fPIC
 
 leveldb_stubs.o: leveldb_stubs.cc
 
-LEVELDBLIB = $(file ../leveldb/libleveldb.a)
+LEVELDB_A = $(file ../leveldb/libleveldb.a)
+LEVELDB_SO = $(file ../leveldb/libleveldb.so)
 
 section
     leveldb.cma leveldb.a leveldb.cmxa libcamlleveldb.a: \
-	leveldb_stubs.o levelDB.cmx levelDB.cmo $(LEVELDBLIB)
+	leveldb_stubs.o levelDB.cmx levelDB.cmo $(LEVELDB_A) $(LEVELDB_SO)
 	ocamlmklib \
 	    -ldopt -lleveldb \
 	    -oc camlleveldb -o leveldb -L../leveldb \
 	    -ltcmalloc -lsnappy leveldb_stubs.o levelDB.cmx levelDB.cmo
 	section
 	    private.TMPDIR = $(shell mktemp -d)
-	    cd($(TMPDIR), $(shell ar x $(absname $(LEVELDBLIB))))
+	    cd($(TMPDIR), $(shell ar x $(absname $(LEVELDB_A))))
 	    private.OBJECTS = $(glob $(TMPDIR)/*.o)
 	    ar rs libcamlleveldb.a $(OBJECTS)
 	    rm -rf $(TMPDIR)

@@ -11,6 +11,9 @@ OCAMLOPTFLAGS += -inline 100
 .SUBDIRS: leveldb
     libleveldb.a:
        make $@
+
+    libleveldb.so:
+	make $@
    
     clean:
        make clean
