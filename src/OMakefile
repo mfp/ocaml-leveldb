@@ -2,7 +2,7 @@
 CFLAGS += -g -Wall -O2 -I../leveldb/include -fPIC
 
 %.o: %.c
-	$(OCAMLC) -cc g++ $(mapprefix -ccopt, $(CFLAGS)) -c $^
+	$(OCAMLC) -cc g++ $(mapprefix -ccopt, $(CFLAGS)) -ccopt -pthread -c $^
 
 leveldb_stubs.o: leveldb_stubs.cc
 
