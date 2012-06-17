@@ -28,6 +28,10 @@ Just
 
 should do. It will build both LevelDB and the OCaml bindings.
 
+You can then install (via ocamlfind) with
+
+   $ omake install
+
 API documentation
 -----------------
 Refer to src/levelDB.mli.
