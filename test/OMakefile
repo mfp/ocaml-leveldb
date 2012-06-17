@@ -12,5 +12,9 @@ OCamlProgram(test, $(removesuffix $(ls test_*.ml)) test)
 
 .PHONY: clean
 
+.PHONY: test
+test: test.opt
+	./test.opt
+
 clean:
 	rm -f $(filter-proper-targets $(ls R, .)) *.s *.annot *.so *.a
