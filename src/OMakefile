@@ -45,7 +45,7 @@ section
 	    ar rs libcamlleveldb.a $(OBJECTS)
 	    rm -rf $(TMPDIR)
 
-toplevel: leveldb.cma libcamlleveldb.a
+toplevel: leveldb.cma
 	ocamlmktop -cc g++ -ccopt -Wno-write-strings \
 	    -o toplevel -cclib -L. unix.cma threads.cma leveldb.cma -thread
 
