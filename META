@@ -1,0 +1,7 @@
+name="leveldb"
+version="0.9.0"
+description="leveldb bindings"
+requires="threads"
+archive(byte)="leveldb.cma"
+archive(native)="leveldb.cmxa"
+

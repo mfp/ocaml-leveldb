@@ -15,3 +15,12 @@ OCAMLOPTFLAGS += -inline 100
     clean:
        make clean
 
+PACKAGE_FILES = $(cd src, $(ls *.cma *.cmxa *.cmx *.cmi *.mli *.so *.a))
+
+.PHONY: install
+install:
+	ocamlfind install leveldb META $(PACKAGE_FILES)
+
+.PHONY: uninstall
+uninstall:
+	ocamlfind remove leveldb
