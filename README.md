@@ -1,20 +1,23 @@
 
 ocaml-leveldb: OCaml bindings for Google's LevelDB
 ===================================================
-Copyright (c) 2011 Mauricio Fernandez <mfp@acm.org>
+Copyright (c) 2011-2012 Mauricio Fernandez <mfp@acm.org>
 
 These bindings expose nearly the full LevelDB C++ API, including:
+
 * iterators
 * snapshots
 * batch updates
 * support for custom comparators
 
 Blocking functions release the OCaml runtime system, allowing to:
+
 * run them in parallel with other OCaml code
 * perform multiple LevelDB operations in parallel
 
 Requirements
 ------------
+
 * OCaml >= 3.12.0
 * GCC with C++ frontend (g++)
 * omake to build
