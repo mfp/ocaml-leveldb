@@ -7,15 +7,37 @@ CFLAGS += -g -Wall -O2 -I../leveldb/include -fPIC
 leveldb_stubs.o: leveldb_stubs.cc
 
 LEVELDB_A = $(file ../leveldb/libleveldb.a)
-LEVELDB_SO = $(file ../leveldb/libleveldb.so)
 
 section
-    leveldb.cma leveldb.a leveldb.cmxa libcamlleveldb.a: \
-	leveldb_stubs.o levelDB.cmx levelDB.cmo $(LEVELDB_A) $(LEVELDB_SO)
+    .INCLUDE: ../leveldb/build_config.mk
+	    cd(../leveldb/, $(shell sh build_detect_platform))
+
+    CXXFLAGS += -I$(absname ../leveldb) -I$(absname ../leveldb/include) $(PLATFORM_CXXFLAGS) -O2 -DNDEBUG
+
+    CUSTOM_LEVELDB_OBJS[] =
+
+    foreach(SRC, $(SOURCES)):
+	private.DST = custom-leveldb/$(replacesuffixes .cc, .o, $(basename $(SRC)))
+	$(DST): ../leveldb/$(SRC)
+	    mkdir -p $(dirname $(DST))
+	    $(CXX) -c -I$(absname ../leveldb) -I$(absname ../leveldb/include) \
+		$(PLATFORM_LDFLAGS) $(CXXFLAGS) $(PLATFORM_SHARED_CFLAGS) $< -o $@
+	CUSTOM_LEVELDB_OBJS[] += $(DST)
+	export CUSTOM_LEVELDB_OBJS
+
+    leveldb.cma dllcamlleveldb.so: leveldb_stubs.o levelDB.cmo $(CUSTOM_LEVELDB_OBJS)
 	ocamlmklib \
-	    -ldopt -lleveldb \
-	    -oc camlleveldb -o leveldb -L../leveldb \
-	    -ltcmalloc -lsnappy leveldb_stubs.o levelDB.cmx levelDB.cmo
+	    -oc camlleveldb -o leveldb \
+	    -ltcmalloc -lsnappy $(CUSTOM_LEVELDB_OBJS) leveldb_stubs.o levelDB.cmo
+
+    leveldb.a leveldb.cmxa libcamlleveldb.a: \
+	leveldb_stubs.o levelDB.cmx levelDB.cmo $(LEVELDB_A)
+        # this overwrites dllcamlleveldb for some reason, so we must keep
+	# -leveldb so that it remains linked against it and the .cma is not
+	# broken
+	ocamlmklib \
+	    -oc camlleveldb -o leveldb -ltcmalloc -lsnappy leveldb_stubs.o levelDB.cmx
+        # we now append libleveldb.a's objects into libcamlleveldb.a
 	section
 	    private.TMPDIR = $(shell mktemp -d)
 	    cd($(TMPDIR), $(shell ar x $(absname $(LEVELDB_A))))
