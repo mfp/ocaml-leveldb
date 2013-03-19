@@ -10,7 +10,7 @@ LEVELDB_A = $(file ../leveldb/libleveldb.a)
 
 section
     .INCLUDE: ../leveldb/build_config.mk
-	    cd(../leveldb/, $(shell sh build_detect_platform))
+	    cd(../leveldb/, $(shell sh build_detect_platform build_config.mk ./))
 
     CXXFLAGS += -I$(absname ../leveldb) -I$(absname ../leveldb/include) $(PLATFORM_CXXFLAGS) -O2 -DNDEBUG
 
