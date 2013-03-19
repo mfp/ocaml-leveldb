@@ -21,3 +21,5 @@ gmon.out
 /src/toplevel
 /test/benchmark
 /test/test
+/src/build_config.mk
+/src/build_config.mk.omc
