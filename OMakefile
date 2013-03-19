@@ -10,7 +10,7 @@ OCAMLOPTFLAGS += -inline 100
 
 .SUBDIRS: leveldb
     libleveldb.a:
-       make $@
+       make $@ -j 9
    
     clean:
        make clean
