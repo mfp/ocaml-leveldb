@@ -30,7 +30,7 @@ section
 
     leveldb.cma dllcamlleveldb.so: leveldb_stubs.o levelDB.cmo $(CUSTOM_LEVELDB_PIC_OBJS)
 	ocamlmklib \
-	    -oc camlleveldb -o leveldb -ltcmalloc -lsnappy \
+	    -oc camlleveldb -o leveldb -lsnappy \
 	    $(CUSTOM_LEVELDB_PIC_OBJS) leveldb_stubs.o levelDB.cmo
 
     foreach(obj, $(CUSTOM_LEVELDB_OBJS)):
@@ -39,7 +39,7 @@ section
 
     leveldb.a leveldb.cmxa libcamlleveldb.a: \
 	leveldb_stubs.o levelDB.cmx levelDB.cmo $(LEVELDB_A) $(CUSTOM_LEVELDB_OBJS)
-	ocamlopt -a -o leveldb.cmxa -cclib -ltcmalloc -cclib -lsnappy -cclib -lcamlleveldb levelDB.cmx
+	ocamlopt -a -o leveldb.cmxa -cclib -lsnappy -cclib -lcamlleveldb levelDB.cmx
 	ar rc libcamlleveldb.a $(CUSTOM_LEVELDB_OBJS) leveldb_stubs.o
 	ranlib libcamlleveldb.a
 
