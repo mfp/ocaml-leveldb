@@ -3,7 +3,7 @@ USE_OCAMLFIND = true
 NATIVE_ENABLED = true
 BYTE_ENABLED = true
 
-OCAMLFLAGS += -annot -thread
+OCAMLFLAGS = -w +a-4-6-9-27-28-30..99 -warn-error +a-4-6-9-18-27-28-30..99 -annot -thread
 OCAMLOPTFLAGS += -inline 100
 
 .SUBDIRS: src test
