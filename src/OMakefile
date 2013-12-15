@@ -1,55 +1,22 @@
 
-CFLAGS += -g -Wall -O2 -I../leveldb/include -fPIC
+CFLAGS += -g -Wall -O2 -fPIC
 
 %.o: %.c
-	$(OCAMLC) -cc g++ $(mapprefix -ccopt, $(CFLAGS)) -ccopt -pthread -c $^
+    $(OCAMLC) -cc g++ $(mapprefix -ccopt, $(CFLAGS)) -ccopt -pthread -c $^
 
 leveldb_stubs.o: leveldb_stubs.cc
 
-LEVELDB_A = $(file ../leveldb/libleveldb.a)
-
 section
-    .INCLUDE: build_config.mk
-	    cd(../leveldb/, $(shell sh build_detect_platform build_config.mk ./))
-	    cp ../leveldb/build_config.mk .
-
-    CXXFLAGS += -I$(absname ../leveldb) -I$(absname ../leveldb/include) $(PLATFORM_CXXFLAGS) -O2 -DNDEBUG
-
-    CUSTOM_LEVELDB_PIC_OBJS[] =
-
-    foreach(SRC, $(SOURCES)):
-	private.DST = custom-leveldb/$(replacesuffixes .cc, .o, $(basename $(SRC)))
-	$(DST): ../leveldb/$(SRC)
-	    mkdir -p $(dirname $(DST))
-	    $(CXX) -c -I$(absname ../leveldb) -I$(absname ../leveldb/include) \
-		$(PLATFORM_LDFLAGS) $(CXXFLAGS) $(PLATFORM_SHARED_CFLAGS) $< -o $@
-	CUSTOM_LEVELDB_PIC_OBJS[] += $(DST)
-	export CUSTOM_LEVELDB_PIC_OBJS
-
-    CUSTOM_LEVELDB_OBJS = $(addprefix ../leveldb/, $(replacesuffixes .cc, .o, $(SOURCES)))
-
-    leveldb.cma dllcamlleveldb.so: leveldb_stubs.o levelDB.cmo $(CUSTOM_LEVELDB_PIC_OBJS)
-	ocamlmklib \
-	    -oc camlleveldb -o leveldb -lsnappy \
-	    $(CUSTOM_LEVELDB_PIC_OBJS) leveldb_stubs.o levelDB.cmo
-
-    foreach(obj, $(CUSTOM_LEVELDB_OBJS)):
-	$(obj): $(LEVELDB_A)
-	    true
-
-    leveldb.a leveldb.cmxa libcamlleveldb.a: \
-	leveldb_stubs.o levelDB.cmx levelDB.cmo $(LEVELDB_A) $(CUSTOM_LEVELDB_OBJS)
-	ocamlopt -a -o leveldb.cmxa -cclib -lsnappy -cclib -lcamlleveldb levelDB.cmx
-	ar rc libcamlleveldb.a $(CUSTOM_LEVELDB_OBJS) leveldb_stubs.o
-	ranlib libcamlleveldb.a
-
-toplevel: leveldb.cma
-	ocamlmktop -cc g++ -ccopt -Wno-write-strings \
-	    -o toplevel -cclib -L. unix.cma threads.cma leveldb.cma -thread
+    leveldb.cma leveldb.cmxa leveldb.a libcamlleveldb.a dllcamlleveldb.so: \
+            leveldb_stubs.o levelDB.cmo levelDB.cmx
+        ocamlmklib \
+            -oc camlleveldb -o leveldb -lsnappy -lleveldb \
+            leveldb_stubs.o levelDB.cmo levelDB.cmx
 
 .DEFAULT: leveldb.cma leveldb.cmxa
 
 .PHONY: clean
-
 clean:
-	rm -f $(filter-proper-targets $(ls R, .)) *.s *.annot *.so *.a
+    rm -f $(filter-proper-targets $(ls R, .)) *.s *.annot *.so *.a
+
+# vim: set expandtab ts=4:

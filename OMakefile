@@ -8,13 +8,6 @@ OCAMLOPTFLAGS += -inline 100
 
 .SUBDIRS: src test
 
-.SUBDIRS: leveldb
-    libleveldb.a:
-       make $@ -j 9
-   
-    clean:
-       make clean
-
 PACKAGE_FILES = $(cd src, $(ls *.cma *.cmxa *.cmx *.cmi *.mli *.so *.a))
 
 .PHONY: install
