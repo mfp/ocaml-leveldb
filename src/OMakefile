@@ -15,6 +15,9 @@ section
 
 .DEFAULT: leveldb.cma leveldb.cmxa
 
+if $(HAS_NATDYNLINK)
+    .DEFAULT: leveldb.cmxs
+
 .PHONY: clean
 clean:
     rm -f $(filter-proper-targets $(ls R, .)) *.s *.annot *.so *.a
