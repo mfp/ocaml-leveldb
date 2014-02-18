@@ -1,5 +1,6 @@
 
-CFLAGS += -g -Wall -O2 -fPIC
+CFLAGS   += -g -Wall -O2 -fPIC
+CXXFLAGS += "-I$(shell $(OCAMLC) -where)"
 
 %.o: %.c
     $(OCAMLC) -cc g++ $(mapprefix -ccopt, $(CFLAGS)) -ccopt -pthread -c $^
