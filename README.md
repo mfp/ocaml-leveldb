@@ -1,7 +1,7 @@
 
 ocaml-leveldb: OCaml bindings for Google's LevelDB
 ===================================================
-Copyright (c) 2011-2012 Mauricio Fernandez <mfp@acm.org>
+Copyright (c) 2011-2014 Mauricio Fernandez <mfp@acm.org>
 
 These bindings expose nearly the full LevelDB C++ API, including:
 
@@ -22,6 +22,8 @@ Requirements
 * GCC with C++ frontend (g++)
 * omake to build
 * oUnit for the unit tests
+* LevelDB (including dev package libleveldb-dev or similar)
+* Snappy (including dev package libsnappy-dev or similar)
 
 Building
 --------
