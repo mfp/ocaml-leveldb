@@ -88,6 +88,7 @@ val open_db :
   ?max_open_files:int ->
   ?block_size:int -> ?block_restart_interval:int ->
   ?comparator:comparator ->
+  ?cache_size:int ->
   string -> db
 
 (** Close the database. All further operations on it will fail.
@@ -207,7 +208,7 @@ sig
     * will be invalidated and further operations will fail.  The returned
     * iterator needs not be closed manually, for it will be closed in its
     * finalizer. *)
-  val make : db -> iterator
+  val make : ?fill_cache:bool -> db -> iterator
 
   (** Close the iterator. Further operations on it will fail. Note that
     * the iterator fill be closed automatically in its finalizer if this

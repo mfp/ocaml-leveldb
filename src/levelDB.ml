@@ -121,7 +121,8 @@ let lexicographic_comparator = lexicographic_comparator ()
 external open_db_ :
   string -> write_buffer_size:int -> max_open_files:int ->
   block_size:int  -> block_restart_interval:int ->
-  comparator:comparator -> db_ = "ldb_open_bytecode" "ldb_open_native"
+  cache_size:(int option) -> comparator:comparator -> db_
+  = "ldb_open_bytecode" "ldb_open_native"
 
 external close_ : db_ -> unit = "ldb_close"
 external get_exn_ : db_ -> string -> string = "ldb_get"
@@ -212,7 +213,7 @@ end
 
 module Iterator =
 struct
-  external make_ : db_ -> iterator_ = "ldb_make_iter"
+  external make_ : db_ -> fill_cache:bool -> iterator_ = "ldb_make_iter"
   external seek_to_first_ : iterator_ -> unit = "ldb_it_first"
   external seek_to_last_ : iterator_ -> unit = "ldb_it_last"
 
@@ -229,7 +230,7 @@ struct
 
   let close = close_iterator
 
-  let make db = add_iterator_to_db db (make_ db.db)
+  let make ?(fill_cache=true) db = add_iterator_to_db db (make_ db.db fill_cache)
 
   let seek_to_first it = seek_to_first_ it.i_handle
   let seek_to_last it = seek_to_last_ it.i_handle
@@ -343,10 +344,11 @@ let open_db
       ?(block_size = 4096)
       ?(block_restart_interval = 16)
       ?(comparator = lexicographic_comparator)
+      ?cache_size
       path =
   let db = open_db_
     ~write_buffer_size ~max_open_files ~block_size ~block_restart_interval
-    ~comparator path in
+    ~cache_size ~comparator path in
   let mutex = RMutex.make () in
   let db =
     { db; mutex;

@@ -20,6 +20,7 @@
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
 #include <leveldb/comparator.h>
+#include "leveldb/cache.h"
 
 extern "C" {
 
@@ -35,6 +36,8 @@ extern "C" {
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#define Val_none Val_int(0)
 
 typedef struct ldb_any {
   void *data;
@@ -303,7 +306,7 @@ ldb_lexicographic_comparator(value unit)
 CAMLprim value
 ldb_open_native(value s, value write_buffer_size, value max_open_files,
                 value block_size, value block_restart_interval,
-                value comparator)
+                value cache_size_option, value comparator)
 {
  CAMLparam1(s);
  CAMLlocal1(r);
@@ -316,6 +319,9 @@ ldb_open_native(value s, value write_buffer_size, value max_open_files,
  options.max_open_files = Int_val(max_open_files);
  options.block_size = Int_val(block_size);
  options.block_restart_interval = Int_val(block_restart_interval);
+ if (cache_size_option != Val_none) {
+   options.block_cache = leveldb::NewLRUCache(Int_val(Field(cache_size_option, 0)) * 1048576);
+ }
  options.comparator = (const leveldb::Comparator *)comparator;
  leveldb::Status status = leveldb::DB::Open(options, String_val(s), &db);
  CHECK_ERROR(status);
@@ -327,7 +333,7 @@ ldb_open_native(value s, value write_buffer_size, value max_open_files,
 CAMLprim value
 ldb_open_bytecode(value *argv, int argn)
 {
- return ldb_open_native(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+  return ldb_open_native(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
 }
 
 CAMLprim value
@@ -485,7 +491,7 @@ ldb_iterator_compare(value t1, value t2)
 }
 
 CAMLprim value
-ldb_make_iter(value t)
+ldb_make_iter(value t, value fill_cache)
 {
  CAMLparam1(t);
  CAMLlocal1(it);
@@ -493,7 +499,9 @@ ldb_make_iter(value t)
  leveldb::DB *db = LDB_HANDLE(t);
 
  CHECK_CLOSED(t);
- leveldb::Iterator *_it = db->NewIterator(leveldb::ReadOptions());
+ leveldb::ReadOptions options;
+ options.fill_cache = Bool_val(fill_cache);
+ leveldb::Iterator *_it = db->NewIterator(options);
 
  WRAP(it, _it, Iterator, false);
  CAMLreturn(it);
