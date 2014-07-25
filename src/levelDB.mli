@@ -82,7 +82,9 @@ val repair : string -> bool
 
 val lexicographic_comparator : comparator
 
-(** Open a leveldb database in the given directory. *)
+(** Open a leveldb database in the given directory.
+  * @param cache_size size of LRU cache in MB (no cache if not given)
+  * *)
 val open_db :
   ?write_buffer_size:int ->
   ?max_open_files:int ->
