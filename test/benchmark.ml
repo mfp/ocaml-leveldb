@@ -128,13 +128,13 @@ let () =
 
   let compact () =
     print_endline "Compacting...";
-    let db = LDB.open_db "/tmp/ldb" in
+    let db = LDB.open_db ~cache_size:10 "/tmp/ldb" in
       LDB.compact_range db ~from_key:(Some "") ~to_key:None;
       LDB.close db;
       print_endline "DONE" in
 
   let print_stats () =
-    let db = LDB.open_db "/tmp/ldb" in
+    let db = LDB.open_db ~cache_size:10 "/tmp/ldb" in
       begin match LDB.get_property db "leveldb.stats" with
           None -> ()
         | Some x -> print_newline (); print_endline x
@@ -171,4 +171,3 @@ let () =
         `O ("rev scan", bm_iter_rev_scan);
         `E print_stats;
       ]
-
