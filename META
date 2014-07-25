@@ -1,5 +1,5 @@
 name="leveldb"
-version="1.0.4dev"
+version="1.1.0"
 description="leveldb bindings"
 requires="threads"
 archive(byte)="leveldb.cma"
