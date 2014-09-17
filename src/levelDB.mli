@@ -65,6 +65,12 @@ type read_access
   * returning the pointer.*)
 type comparator
 
+(** Type that represents a [const Env*] pointer (refer to
+  * LevelDB's [options.h]). If you want to define your own,
+  * use an external function of type [unit -> env]
+  * returning the pointer.*)
+type env
+
 (** {2 Database maintenance} *)
 
 (** Destroy the contents of the database in the given directory.
@@ -80,6 +86,7 @@ val repair : string -> bool
 
 (** {2 Database operations} *)
 
+val default_env : env
 val lexicographic_comparator : comparator
 
 (** Open a leveldb database in the given directory.
@@ -91,6 +98,7 @@ val open_db :
   ?block_size:int -> ?block_restart_interval:int ->
   ?comparator:comparator ->
   ?cache_size:int ->
+  ?env:env ->
   string -> db
 
 (** Close the database. All further operations on it will fail.

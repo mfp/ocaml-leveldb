@@ -306,7 +306,7 @@ ldb_lexicographic_comparator(value unit)
 CAMLprim value
 ldb_open_native(value s, value write_buffer_size, value max_open_files,
                 value block_size, value block_restart_interval,
-                value cache_size_option, value comparator)
+                value cache_size_option, value comparator, value env)
 {
  CAMLparam1(s);
  CAMLlocal1(r);
@@ -319,6 +319,9 @@ ldb_open_native(value s, value write_buffer_size, value max_open_files,
  options.max_open_files = Int_val(max_open_files);
  options.block_size = Int_val(block_size);
  options.block_restart_interval = Int_val(block_restart_interval);
+
+ if (env != Val_none) options.env = (leveldb::Env *)env;
+
  if (cache_size_option != Val_none) {
    options.block_cache = leveldb::NewLRUCache(Int_val(Field(cache_size_option, 0)) * 1048576);
  }
@@ -333,7 +336,8 @@ ldb_open_native(value s, value write_buffer_size, value max_open_files,
 CAMLprim value
 ldb_open_bytecode(value *argv, int argn)
 {
-  return ldb_open_native(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
+  return ldb_open_native(argv[0], argv[1], argv[2], argv[3], argv[4],
+                         argv[5], argv[6], argv[7]);
 }
 
 CAMLprim value

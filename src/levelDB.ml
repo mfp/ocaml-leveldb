@@ -23,6 +23,9 @@ type writebatch
 type iterator_
 type comparator
 
+type _env
+type env = _env option
+
 external hash_snapshot_ : snapshot_ -> int = "ldb_snapshot_hash" "noalloc"
 external hash_iterator_ : iterator_ -> int = "ldb_iterator_hash" "noalloc"
 
@@ -118,10 +121,12 @@ external lexicographic_comparator : unit -> comparator =
 
 let lexicographic_comparator = lexicographic_comparator ()
 
+let default_env = None
+
 external open_db_ :
   string -> write_buffer_size:int -> max_open_files:int ->
   block_size:int  -> block_restart_interval:int ->
-  cache_size:(int option) -> comparator:comparator -> db_
+  cache_size:(int option) -> comparator:comparator -> env:env -> db_
   = "ldb_open_bytecode" "ldb_open_native"
 
 external close_ : db_ -> unit = "ldb_close"
@@ -345,10 +350,11 @@ let open_db
       ?(block_restart_interval = 16)
       ?(comparator = lexicographic_comparator)
       ?cache_size
+      ?(env = default_env)
       path =
   let db = open_db_
     ~write_buffer_size ~max_open_files ~block_size ~block_restart_interval
-    ~cache_size ~comparator path in
+    ~cache_size ~comparator ~env path in
   let mutex = RMutex.make () in
   let db =
     { db; mutex;
