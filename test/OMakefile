@@ -1,5 +1,5 @@
 
-OCAMLPACKS[] = unix threads oUnit
+OCAMLPACKS[] = bytes unix threads oUnit
 
 OCAMLINCLUDES += ../src
 OCAML_LIBS[] += ../src/leveldb
