@@ -251,7 +251,7 @@ struct
       else begin
         if len > Sys.max_string_length then
           error "Iterator.%s: string is larger than Sys.max_string_length" name;
-        buf := String.create len;
+        buf := Bytes.create len;
         f it !buf
       end
 
