@@ -832,6 +832,7 @@ ldb_snapshot_make(value t)
  const leveldb::Snapshot* snapshot = db->GetSnapshot();
  ret = caml_alloc_custom(&ldb_snapshot_ops, sizeof(ldb_snapshot), 0, 1);
  ldb_snapshot *_ret = UNWRAP_SNAPSHOT(ret);
+ _ret->id = ++wrapped_val_id;
  _ret->db = db;
  _ret->snapshot = snapshot;
  _ret->closed = false;
