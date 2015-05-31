@@ -15,9 +15,9 @@ remove: [
 ]
 depends: [
   "ocamlfind" {build}
-  "omake"
+  "omake" {build}
   "conf-leveldb"
-  "ounit"
+  "ounit" {test}
 ]
 depexts: [
   [["debian"] ["libsnappy-dev"]]
