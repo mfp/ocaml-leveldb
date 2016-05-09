@@ -404,7 +404,7 @@ ldb_get(value t, value k)
  RELEASE_HANDLE(t);
  caml_leave_blocking_section();
 
- if(status.IsNotFound()) { v.~string(); RAISE_NOT_FOUND; }
+ if(status.IsNotFound()) { v.~string(); status.~Status(); RAISE_NOT_FOUND; }
 
  CHECK_ERROR_AND_CLEANUP(status, { v.~string(); });
 
@@ -871,7 +871,7 @@ ldb_snapshot_get(value t, value k)
  RELEASE_SNAPSHOT(t);
  caml_leave_blocking_section();
 
- if(status.IsNotFound()) { v.~string(); RAISE_NOT_FOUND; }
+ if(status.IsNotFound()) { v.~string(); status.~Status(); RAISE_NOT_FOUND; }
 
  CHECK_ERROR_AND_CLEANUP(status, { v.~string(); });
 
