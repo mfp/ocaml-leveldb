@@ -1,6 +1,6 @@
 opam-version: "1.2"
 name: "leveldb"
-version: "1.1.1"
+version: "1.1.2"
 author: "mfp@acm.org"
 maintainer: "mfp@acm.org"
 homepage: "https://github.com/mfp/ocaml-leveldb"
