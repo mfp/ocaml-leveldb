@@ -16,8 +16,12 @@ section
 
 .DEFAULT: leveldb.cma leveldb.cmxa
 
+.PHONY: libs
+libs: leveldb.cma leveldb.cmxa
+
 if $(HAS_NATDYNLINK)
     .DEFAULT: leveldb.cmxs
+    libs: leveldb.cmxs
 
 .PHONY: clean
 clean:
