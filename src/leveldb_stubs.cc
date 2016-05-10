@@ -122,6 +122,28 @@ static void raise_error(const char *s)
      caml_raise_with_string(*error_exn, s);
 }
 
+static void
+raise_status_error_and_release(const leveldb::Status &status)
+{
+ using namespace std;
+ CAMLparam0();
+ CAMLlocal1(err);
+ std::string msg = status.ToString();
+
+ err = caml_copy_string(msg.c_str());
+
+ msg.~string();
+ status.~Status();
+
+ if(!error_exn) error_exn = caml_named_value("org.eigenclass/leveldb/Error");
+ if(!error_exn)
+     caml_failwith("<LevelDB: error message not available>");
+ else
+     caml_raise_with_arg(*error_exn, err);
+
+ CAMLreturn0;
+}
+
 #define RAISE_NOT_FOUND \
     do { \
 	if(!not_found_exn) \
@@ -134,14 +156,14 @@ static void raise_error(const char *s)
 
 #define CHECK_ERROR(status) \
     do { \
-      if(!status.ok()) raise_error(status.ToString().c_str()); \
+      if(!status.ok()) raise_status_error_and_release(status); \
     } while(0);
 
 #define CHECK_ERROR_AND_CLEANUP(status, cleanup) \
     do { \
       if(!status.ok()) { \
           do { cleanup } while(0); \
-          raise_error(status.ToString().c_str()); \
+          raise_status_error_and_release(status); \
       } \
     } while(0);
 
@@ -620,7 +642,7 @@ ldb_it_key_unsafe(value it, value buf)
  CHECK_IT_CLOSED(it);
  leveldb::Iterator *_it = LDB_ITERATOR(it);
 
- if(!_it->Valid()) raise_error(_it->status().ToString().c_str());
+ if(!_it->Valid()) raise_status_error_and_release(_it->status());
 
  leveldb::Slice key = _it->key();
  size_t size = key.size();
@@ -643,7 +665,7 @@ ldb_it_value_unsafe(value it, value buf)
  CHECK_IT_CLOSED(it);
  leveldb::Iterator *_it = LDB_ITERATOR(it);
 
- if(!_it->Valid()) raise_error(_it->status().ToString().c_str());
+ if(!_it->Valid()) raise_status_error_and_release(_it->status());
 
  leveldb::Slice v = _it->value();
  size_t size = v.size();
