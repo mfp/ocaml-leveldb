@@ -254,10 +254,10 @@ sig
     * updates the reference.
     * @raise Error if the iterator is not {!valid}
     * @return length of the key *)
-  val fill_key : iterator -> string ref -> int
+  val fill_key : iterator -> bytes ref -> int
 
   (** Similar to {!fill_key}, but returning the value. *)
-  val fill_value : iterator -> string ref -> int
+  val fill_value : iterator -> bytes ref -> int
 
   (** Return the key part of the binding pointer to by the iterator.
     * @raise Error if the iterator is not {!valid}. *)

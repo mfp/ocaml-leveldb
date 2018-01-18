@@ -230,8 +230,8 @@ struct
 
   external valid_ : iterator_ -> bool = "ldb_it_valid" "noalloc"
 
-  external key_unsafe_ : iterator_ -> string -> int = "ldb_it_key_unsafe"
-  external value_unsafe_ : iterator_ -> string -> int = "ldb_it_value_unsafe"
+  external key_unsafe_ : iterator_ -> bytes -> int = "ldb_it_key_unsafe"
+  external value_unsafe_ : iterator_ -> bytes -> int = "ldb_it_value_unsafe"
 
   let close = close_iterator
 
@@ -252,7 +252,7 @@ struct
 
   let fill_and_resize_if_needed name f it buf =
     let len = f it !buf in
-      if len <= String.length !buf then len
+      if len <= Bytes.length !buf then len
       else begin
         if len > Sys.max_string_length then
           error "Iterator.%s: string is larger than Sys.max_string_length" name;
@@ -266,8 +266,17 @@ struct
   let fill_value it buf =
     fill_and_resize_if_needed "fill_value" value_unsafe_ it.i_handle buf
 
-  let get_key it = let b = ref "" in ignore (fill_key it b); !b
-  let get_value it = let b = ref "" in ignore (fill_value it b); !b
+  let get_key it =
+    let b = ref Bytes.empty in
+    ignore (fill_key it b);
+    (* !b is the only remaining reference to this buffer, it is safe to cast to a string *)
+    Bytes.unsafe_to_string !b
+
+  let get_value it =
+    let b = ref Bytes.empty in
+    ignore (fill_value it b);
+    (* !b is the only remaining reference to this buffer, it is safe to cast to a string *)
+    Bytes.unsafe_to_string !b
 
   let iter_aux next f it =
     let finished = ref false in
