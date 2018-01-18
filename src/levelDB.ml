@@ -26,8 +26,8 @@ type comparator
 type _env
 type env = _env option
 
-external hash_snapshot_ : snapshot_ -> int = "ldb_snapshot_hash" "noalloc"
-external hash_iterator_ : iterator_ -> int = "ldb_iterator_hash" "noalloc"
+external hash_snapshot_ : snapshot_ -> int = "ldb_snapshot_hash" [@@noalloc]
+external hash_iterator_ : iterator_ -> int = "ldb_iterator_hash" [@@noalloc]
 
 module RMutex =
 struct
@@ -117,7 +117,7 @@ external destroy : string -> bool = "ldb_destroy"
 external repair : string -> bool = "ldb_repair"
 
 external lexicographic_comparator : unit -> comparator =
-  "ldb_lexicographic_comparator" "noalloc"
+  "ldb_lexicographic_comparator" [@@noalloc]
 
 let lexicographic_comparator = lexicographic_comparator ()
 
@@ -201,7 +201,7 @@ struct
 
   external delete_substring_unsafe :
     writebatch -> string -> int -> int -> unit =
-      "ldb_writebatch_delete_substring_unsafe" "noalloc"
+      "ldb_writebatch_delete_substring_unsafe" [@@noalloc]
 
   let delete b k = delete_substring_unsafe b k 0 (String.length k)
 
@@ -228,7 +228,7 @@ struct
   external next_ : iterator_ -> unit = "ldb_it_next"
   external prev_: iterator_ -> unit = "ldb_it_prev"
 
-  external valid_ : iterator_ -> bool = "ldb_it_valid" "noalloc"
+  external valid_ : iterator_ -> bool = "ldb_it_valid" [@@noalloc]
 
   external key_unsafe_ : iterator_ -> bytes -> int = "ldb_it_key_unsafe"
   external value_unsafe_ : iterator_ -> bytes -> int = "ldb_it_value_unsafe"
