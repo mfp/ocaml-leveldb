@@ -57,7 +57,7 @@ let bm_iter_value db ?seed n =
     time
       (fun () ->
          let it = LDB.Iterator.make db in
-         let v = ref "" in
+         let v = ref Bytes.empty in
            for i = 1 to n do
              let k = FRAND.int r in
              let key = string_of_int k in
@@ -103,8 +103,8 @@ let bm_iter_scan_aux init next db ?seed n =
     time
       (fun () ->
          let it = LDB.Iterator.make db in
-         let k = ref "" in
-         let v = ref "" in
+         let k = ref Bytes.empty in
+         let v = ref Bytes.empty in
            init it;
            while LDB.Iterator.valid it do
              ignore (LDB.Iterator.fill_key it k);
