@@ -26,8 +26,8 @@ type comparator
 type _env
 type env = _env option
 
-external hash_snapshot_ : snapshot_ -> int = "ldb_snapshot_hash" "noalloc"
-external hash_iterator_ : iterator_ -> int = "ldb_iterator_hash" "noalloc"
+external hash_snapshot_ : snapshot_ -> int = "ldb_snapshot_hash" [@@noalloc]
+external hash_iterator_ : iterator_ -> int = "ldb_iterator_hash" [@@noalloc]
 
 module RMutex =
 struct
@@ -117,7 +117,7 @@ external destroy : string -> bool = "ldb_destroy"
 external repair : string -> bool = "ldb_repair"
 
 external lexicographic_comparator : unit -> comparator =
-  "ldb_lexicographic_comparator" "noalloc"
+  "ldb_lexicographic_comparator" [@@noalloc]
 
 let lexicographic_comparator = lexicographic_comparator ()
 
@@ -201,7 +201,7 @@ struct
 
   external delete_substring_unsafe :
     writebatch -> string -> int -> int -> unit =
-      "ldb_writebatch_delete_substring_unsafe" "noalloc"
+      "ldb_writebatch_delete_substring_unsafe" [@@noalloc]
 
   let delete b k = delete_substring_unsafe b k 0 (String.length k)
 
@@ -228,10 +228,10 @@ struct
   external next_ : iterator_ -> unit = "ldb_it_next"
   external prev_: iterator_ -> unit = "ldb_it_prev"
 
-  external valid_ : iterator_ -> bool = "ldb_it_valid" "noalloc"
+  external valid_ : iterator_ -> bool = "ldb_it_valid" [@@noalloc]
 
-  external key_unsafe_ : iterator_ -> string -> int = "ldb_it_key_unsafe"
-  external value_unsafe_ : iterator_ -> string -> int = "ldb_it_value_unsafe"
+  external key_unsafe_ : iterator_ -> bytes -> int = "ldb_it_key_unsafe"
+  external value_unsafe_ : iterator_ -> bytes -> int = "ldb_it_value_unsafe"
 
   let close = close_iterator
 
@@ -252,7 +252,7 @@ struct
 
   let fill_and_resize_if_needed name f it buf =
     let len = f it !buf in
-      if len <= String.length !buf then len
+      if len <= Bytes.length !buf then len
       else begin
         if len > Sys.max_string_length then
           error "Iterator.%s: string is larger than Sys.max_string_length" name;
@@ -266,8 +266,17 @@ struct
   let fill_value it buf =
     fill_and_resize_if_needed "fill_value" value_unsafe_ it.i_handle buf
 
-  let get_key it = let b = ref "" in ignore (fill_key it b); !b
-  let get_value it = let b = ref "" in ignore (fill_value it b); !b
+  let get_key it =
+    let b = ref Bytes.empty in
+    ignore (fill_key it b);
+    (* !b is the only remaining reference to this buffer, it is safe to cast to a string *)
+    Bytes.unsafe_to_string !b
+
+  let get_value it =
+    let b = ref Bytes.empty in
+    ignore (fill_value it b);
+    (* !b is the only remaining reference to this buffer, it is safe to cast to a string *)
+    Bytes.unsafe_to_string !b
 
   let iter_aux next f it =
     let finished = ref false in

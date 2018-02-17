@@ -14,6 +14,7 @@ install: [["omake" "install" "prefix=%{prefix}%"]]
 build-test: [["omake" "test"] { ounit:installed } ]
 remove: [["ocamlfind" "remove" "leveldb"]]
 
+available: [ocaml-version >= "4.03"]
 depends: [
   "ocamlfind" {build}
   "omake" {build}
