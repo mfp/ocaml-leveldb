@@ -1,0 +1,9 @@
+(test
+ (name test)
+ (modules test test_utils)
+ (libraries leveldb ounit2))
+
+(executable
+ (name benchmark)
+ (modules benchmark)
+ (libraries leveldb))

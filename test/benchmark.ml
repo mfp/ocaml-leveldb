@@ -1,4 +1,3 @@
-
 open Printf
 
 module LDB = LevelDB
@@ -35,7 +34,7 @@ let loop_k_cost n =
   let r = FRAND.make () in
     time
       (fun () ->
-         for i = 1 to n do
+         for _i = 1 to n do
            let k = FRAND.int r in
              ignore (string_of_int k);
          done)
@@ -45,7 +44,7 @@ let bm_get db ?seed n =
   let dt =
     time
       (fun () ->
-         for i = 1 to n do
+         for _i = 1 to n do
            let k = FRAND.int r in
              ignore (LDB.get db (string_of_int k))
          done)
@@ -58,7 +57,7 @@ let bm_iter_value db ?seed n =
       (fun () ->
          let it = LDB.Iterator.make db in
          let v = ref Bytes.empty in
-           for i = 1 to n do
+           for _i = 1 to n do
              let k = FRAND.int r in
              let key = string_of_int k in
                LDB.Iterator.seek it key 0 (String.length key);
@@ -67,7 +66,7 @@ let bm_iter_value db ?seed n =
            LDB.Iterator.close it)
   in dt -. loop_k_cost n
 
-let bm_put_aux ~sync db ?seed n =
+let bm_put_aux ~sync db ?seed:_ n =
   let r = FRAND.make () in
   let dt =
     time
@@ -81,7 +80,7 @@ let bm_put_aux ~sync db ?seed n =
 let bm_put = bm_put_aux ~sync:false
 let bm_put_sync = bm_put_aux ~sync:true
 
-let bm_batch_put_sync db ?seed n =
+let bm_batch_put_sync db ?seed:_ n =
   let r = FRAND.make () in
   let dt =
     time
@@ -98,7 +97,7 @@ let bm_batch_put_sync db ?seed n =
          done)
   in dt -. loop_kv_cost n
 
-let bm_iter_scan_aux init next db ?seed n =
+let bm_iter_scan_aux init next db ?seed:_ _n =
   let dt =
     time
       (fun () ->

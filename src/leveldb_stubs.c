@@ -1,1 +1,0 @@
-leveldb_stubs.cc

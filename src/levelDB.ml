@@ -35,6 +35,7 @@ struct
 
   let make () = { mutex = Mutex.create (); thread = None; }
 
+  (*
   let with_lock t f =
     let id = Thread.id (Thread.self ()) in
       match t.thread with
@@ -51,8 +52,9 @@ struct
               t.thread <- None;
               Mutex.unlock t.mutex;
               raise e
+  *)
 
-  let with_lock t f = f ()
+  let with_lock _t f = f ()
 end
 
 module rec TYPES :
@@ -235,7 +237,7 @@ struct
 
   let close = close_iterator
 
-  let make ?(fill_cache=true) db = add_iterator_to_db db (make_ db.db fill_cache)
+  let make ?(fill_cache=true) db = add_iterator_to_db db (make_ db.db ~fill_cache)
 
   let seek_to_first it = seek_to_first_ it.i_handle
   let seek_to_last it = seek_to_last_ it.i_handle
