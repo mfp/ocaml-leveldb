@@ -1,0 +1,5 @@
+depexts: [
+  [["debian"] ["libsnappy-dev"]]
+  [["debian"] ["libleveldb-dev"]]
+  [["ubuntu"] ["libsnappy-dev"]]
+]
