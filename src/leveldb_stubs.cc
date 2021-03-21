@@ -110,8 +110,8 @@ static struct custom_operations ldb_snapshot_ops =
  custom_deserialize_default
 };
 
-static value *not_found_exn = 0;
-static value *error_exn = 0;
+static const value *not_found_exn = 0;
+static const value *error_exn = 0;
 
 static void raise_error(const char *s)
 {
@@ -402,7 +402,7 @@ ldb_repair(value s)
 #define COPY_FROM(dst, src) \
     do { \
         dst = caml_alloc_string(src.size()); \
-        memcpy(String_val(dst), src.data(), src.size()); \
+        memcpy(Bytes_val(dst), src.data(), src.size()); \
     } while(0);
 
 CAMLprim value
@@ -648,7 +648,7 @@ ldb_it_key_unsafe(value it, value buf)
  size_t size = key.size();
 
  if(size <= string_length(buf))
-     memcpy(String_val(buf), key.data(), size);
+     memcpy(Bytes_val(buf), key.data(), size);
 
  CAMLreturn(Val_long(size));
 }
@@ -671,7 +671,7 @@ ldb_it_value_unsafe(value it, value buf)
  size_t size = v.size();
 
  if(size <= string_length(buf))
-     memcpy(String_val(buf), v.data(), size);
+     memcpy(Bytes_val(buf), v.data(), size);
 
  CAMLreturn(Val_long(size));
 }
