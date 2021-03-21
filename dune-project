@@ -2,7 +2,7 @@
 
 (name leveldb)
 
-(license BSD-3-Clause)
+(license MIT)
 
 (authors "<mfp@acm.org>")
 

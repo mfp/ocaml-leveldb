@@ -1,7 +1,7 @@
 
 ocaml-leveldb: OCaml bindings for Google's LevelDB
 ===================================================
-Copyright (c) 2011-2014 Mauricio Fernandez <mfp@acm.org>
+Copyright (c) 2011-2021 Mauricio Fernandez <mfp@acm.org>
 
 These bindings expose nearly the full LevelDB C++ API, including:
 
@@ -41,3 +41,7 @@ API documentation
 -----------------
 Refer to src/levelDB.mli.
 
+License
+-------
+This software is dual-licensed as LGPL+static linking exception and MIT.
+Refer to LICENSE.MIT and LICENSE.LGPL+static.
