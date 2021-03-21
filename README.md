@@ -20,8 +20,8 @@ Requirements
 
 * OCaml >= 3.12.0
 * GCC with C++ frontend (g++)
-* omake to build
-* oUnit for the unit tests
+* dune to build
+* ounit2 for the unit tests
 * LevelDB (including dev package libleveldb-dev or similar)
 * Snappy (including dev package libsnappy-dev or similar)
 
@@ -29,13 +29,13 @@ Building
 --------
 Just 
 
-   $ omake
+   $ dune build @install
 
 should do. It will build both LevelDB and the OCaml bindings.
 
-You can then install (via ocamlfind) with
+You can then install with
 
-   $ omake install
+   $ dune install
 
 API documentation
 -----------------

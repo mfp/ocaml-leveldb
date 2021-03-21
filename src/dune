@@ -1,0 +1,8 @@
+(library
+ (public_name leveldb)
+ (wrapped false)
+ (foreign_stubs
+  (language cxx)
+  (names leveldb_stubs))
+ (c_library_flags -lleveldb -lstdc++)
+ (libraries threads))

@@ -1,7 +1,6 @@
-
 open Printf
 open OUnit
-open Test_00util
+open Test_utils
 
 module L = LevelDB
 module I = LevelDB.Iterator
