@@ -35,7 +35,6 @@ struct
 
   let make () = { mutex = Mutex.create (); thread = None; }
 
-  (*
   let with_lock t f =
     let id = Thread.id (Thread.self ()) in
       match t.thread with
@@ -52,9 +51,6 @@ struct
               t.thread <- None;
               Mutex.unlock t.mutex;
               raise e
-  *)
-
-  let with_lock _t f = f ()
 end
 
 module rec TYPES :
@@ -153,9 +149,6 @@ external release_snapshot_ : snapshot_ -> unit = "ldb_snapshot_release"
 external close_iterator_ : iterator_ -> unit = "ldb_iter_close"
 
 let release_snapshot s =
-  (* we need a recursive mutex here because SNAPSHOTS.remove could trigger a
-   * GC run that executes a finalizer which releases another snapshot or
-   * iterator *)
   RMutex.with_lock s.s_parent.mutex
     (fun () -> SNAPSHOTS.remove s.s_parent.snapshots s);
   release_snapshot_ s.s_handle
