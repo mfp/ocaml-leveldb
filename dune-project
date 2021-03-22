@@ -16,8 +16,13 @@
 (package
  (name leveldb)
  (synopsis "OCaml bindings for Google's LevelDB library")
- (description
-  "These bindings expose nearly the full LevelDB C++ API, including: iterators, snapshots, batch updates and support for custom comparators. Blocking functions release the OCaml runtime system, allowing to run them in parallel with other OCaml code and to perform multiple LevelDB operations in parallel.")
+ (description "These bindings expose nearly the full LevelDB C++ API, including:
+* iterators
+* snapshots
+* batch updates and support for custom comparators
+Blocking functions release the OCaml runtime system,
+allowing to run them in parallel with other OCaml code and to perform multiple LevelDB operations in parallel.
+")
  (depends
   (ocaml
    (>= 4.06))
