@@ -25,4 +25,5 @@
    (>= 2.0))
   (ounit2 :with-test)
   (odoc :with-doc)
-  conf-leveldb))
+  conf-leveldb
+   ( >= 2.0)))

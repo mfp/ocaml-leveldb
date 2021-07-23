@@ -3,6 +3,7 @@
  (wrapped false)
  (foreign_stubs
   (language cxx)
+  (flags (:standard -std=gnu++11))
   (names leveldb_stubs))
  (c_library_flags -lleveldb -lstdc++)
  (libraries threads))
