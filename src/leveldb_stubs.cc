@@ -320,9 +320,13 @@ static void release_WriteBatch(leveldb::WriteBatch *writebatch)
 CAMLprim value
 ldb_lexicographic_comparator(value unit)
 {
- const leveldb::Comparator *c = leveldb::BytewiseComparator ();
+ CAMLparam1 (unit);
+ CAMLlocal1 (comparator);
 
- return (value)c;
+ const leveldb::Comparator *c = leveldb::BytewiseComparator ();
+ comparator = caml_copy_nativeint((intptr_t)c);
+
+ CAMLreturn (comparator);
 }
 
 CAMLprim value
@@ -347,7 +351,7 @@ ldb_open_native(value s, value write_buffer_size, value max_open_files,
  if (cache_size_option != Val_none) {
    options.block_cache = leveldb::NewLRUCache(Int_val(Field(cache_size_option, 0)) * 1048576);
  }
- options.comparator = (const leveldb::Comparator *)comparator;
+ options.comparator = (const leveldb::Comparator *)Nativeint_val(comparator);
  leveldb::Status status = leveldb::DB::Open(options, String_val(s), &db);
  CHECK_ERROR(status);
 

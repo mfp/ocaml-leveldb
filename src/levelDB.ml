@@ -115,7 +115,7 @@ external destroy : string -> bool = "ldb_destroy"
 external repair : string -> bool = "ldb_repair"
 
 external lexicographic_comparator : unit -> comparator =
-  "ldb_lexicographic_comparator" [@@noalloc]
+  "ldb_lexicographic_comparator"
 
 let lexicographic_comparator = lexicographic_comparator ()
 
